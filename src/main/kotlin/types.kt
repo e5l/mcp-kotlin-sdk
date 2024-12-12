@@ -15,6 +15,8 @@ const val JSONRPC_VERSION: String = "2.0"
 // line 15
 /**
  * A progress token, used to associate progress notifications with the original request.
+ *
+ * TODO String | Int
  */
 typealias ProgressToken = String
 
@@ -36,27 +38,65 @@ sealed interface WithMeta {
     val _meta: PassthroughObject?
 }
 
-interface BaseRequestParams : PassthroughObject, WithMeta {
+@Serializable
+sealed interface BaseRequestParams : PassthroughObject, WithMeta {
     override val _meta: Meta?
 
-    interface Meta : PassthroughObject {
+    @Serializable
+    data class Meta(
         /**
          * If specified, the caller is requesting out-of-band progress notifications for this request (as represented by notifications/progress). The value of this parameter is an opaque token that will be attached to any subsequent notifications. The receiver is not obligated to provide these notifications.
          */
-        val progressToken: ProgressToken?
+        val progressToken: ProgressToken?,
+        override val additionalProperties: Map<String, JsonObject?> = emptyMap(),
+    ) : PassthroughObject
+}
+
+@Serializable(with = RequestMethodSerializer::class)
+sealed interface Method {
+    val value: String
+
+    enum class Defined(override val value: String) : Method {
+        Initialize("initialize"),
+        Ping("ping"),
+        ResourcesList("resources/list"),
+        ResourcesTemplatesList("resources/templates/list"),
+        ResourcesRead("resources/read"),
+        ResourcesSubscribe("resources/subscribe"),
+        ResourcesUnsubscribe("resources/unsubscribe"),
+        PromptsList("prompts/list"),
+        PromptsGet("prompts/get"),
+        NotificationsCancelled("notifications/cancelled"),
+        NotificationsInitialized("notifications/initialized"),
+        NotificationsProgress("notifications/progress"),
+        NotificationsMessage("notifications/message"),
+        NotificationsResourcesUpdated("notifications/resources/updated"),
+        NotificationsResourcesListChanged("notifications/resources/list_changed"),
+        NotificationsToolsListChanged("notifications/tools/list_changed"),
+        NotificationsRootsListChanged("notifications/roots/list_changed"),
+        NotificationsPromptsListChanged("notifications/prompts/list_changed"),
+        ToolsList("tools/list"),
+        ToolsCall("tools/call"),
+        LoggingSetLevel("logging/setLevel"),
+        SamplingCreateMessage("sampling/createMessage"),
+        CompletionComplete("completion/complete"),
+        RootsList("roots/list"),
+        ;
     }
+
+    data class Unknown(override val value: String) : Method
 }
 
 @Serializable
 sealed interface Request {
-    val method: String
+    val method: Method
     val params: BaseRequestParams?
 }
 
 interface BaseNotificationParams : PassthroughObject, WithMeta
 
 interface Notification : PassthroughObject {
-    val method: String
+    val method: Method
     val params: BaseNotificationParams?
 }
 
@@ -153,7 +193,7 @@ object EmptyResult : ClientResult, ServerResult {
  * A client MUST NOT attempt to cancel its `initialize` request.
  */
 abstract class CancelledNotification : ClientNotification, ServerNotification {
-    final override val method: String = "notifications/cancelled"
+    final override val method: Method = Method.Defined.NotificationsCancelled
     abstract override val params: Params
 
     interface Params : BaseNotificationParams {
@@ -219,7 +259,7 @@ sealed interface ServerResult : Result
  * This request is sent from the client to the server when it first connects, asking it to begin initialization.
  */
 abstract class InitializeRequest : ClientRequest {
-    final override val method: String = "initialize"
+    final override val method: Method = Method.Defined.Initialize
     abstract override val params: Params
 
     interface Params : BaseRequestParams {
@@ -301,7 +341,7 @@ interface InitializeResult : ServerResult {
  * This notification is sent from the client to the server after initialization has finished.
  */
 abstract class InitializedNotification : ClientNotification {
-    final override val method: String = "notifications/initialized"
+    final override val method: Method = Method.Defined.NotificationsInitialized
 }
 
 /* Ping */
@@ -309,7 +349,7 @@ abstract class InitializedNotification : ClientNotification {
  * A ping, issued by either the server or the client, to check that the other party is still alive. The receiver must promptly respond, or else may be disconnected.
  */
 abstract class PingRequest : ClientRequest, ServerRequest {
-    final override val method: String = "ping"
+    final override val method: Method = Method.Defined.Ping
 }
 
 /* Progress notifications */
@@ -331,7 +371,7 @@ sealed interface Progress : PassthroughObject {
  * An out-of-band notification used to inform the receiver of a progress update for a long-running request.
  */
 abstract class ProgressNotification : ClientNotification, ServerNotification {
-    final override val method: String = "notifications/progress"
+    final override val method: Method = Method.Defined.NotificationsProgress
     abstract override val params: Params
 
     @Serializable
@@ -467,7 +507,7 @@ interface ResourceTemplate : PassthroughObject {
  * Sent from the client to request a list of resources the server has.
  */
 abstract class ListResourcesRequest : ClientRequest, PaginatedRequest {
-    final override val method: String = "resources/list"
+    final override val method: Method = Method.Defined.ResourcesList
 }
 
 /**
@@ -481,7 +521,7 @@ interface ListResourcesResult : ServerResult, PaginatedResult {
  * Sent from the client to request a list of resource templates the server has.
  */
 abstract class ListResourceTemplatesRequest : ClientRequest, PaginatedRequest {
-    final override val method: String = "resources/templates/list"
+    final override val method: Method = Method.Defined.ResourcesTemplatesList
 }
 
 /**
@@ -495,7 +535,7 @@ interface ListResourceTemplatesResult : ServerResult, PaginatedResult {
  * Sent from the client to the server, to read a specific resource URI.
  */
 abstract class ReadResourceRequest : ClientRequest {
-    final override val method: String = "resources/read"
+    final override val method: Method = Method.Defined.ResourcesRead
     abstract override val params: Params
 
     interface Params : BaseRequestParams {
@@ -518,14 +558,14 @@ interface ReadResourceResult : ServerResult {
  * An optional notification from the server to the client, informing it that the list of resources it can read from has changed. This may be issued by servers without any previous subscription from the client.
  */
 abstract class ResourceListChangedNotification : ServerNotification {
-    final override val method: String = "notifications/resources/list_changed"
+    final override val method: Method = Method.Defined.NotificationsResourcesListChanged
 }
 
 /**
  * Sent from the client to request resources/updated notifications from the server whenever a particular resource changes.
  */
 abstract class SubscribeRequest : ClientRequest {
-    final override val method: String = "resources/subscribe"
+    final override val method: Method = Method.Defined.ResourcesSubscribe
     abstract override val params: Params
 
     interface Params : BaseRequestParams {
@@ -540,7 +580,7 @@ abstract class SubscribeRequest : ClientRequest {
  * Sent from the client to request cancellation of resources/updated notifications from the server. This should follow a previous resources/subscribe request.
  */
 abstract class UnsubscribeRequest : ClientRequest {
-    final override val method: String = "resources/unsubscribe"
+    final override val method: Method = Method.Defined.ResourcesUnsubscribe
     abstract override val params: Params
 
     interface Params : BaseRequestParams {
@@ -555,7 +595,7 @@ abstract class UnsubscribeRequest : ClientRequest {
  * A notification from the server to the client, informing it that a resource has changed and may need to be read again. This should only be sent if the client previously sent a resources/subscribe request.
  */
 abstract class ResourceUpdatedNotification : ServerNotification {
-    final override val method: String = "notifications/resources/updated"
+    final override val method: Method = Method.Defined.NotificationsResourcesUpdated
 
     abstract override val params: Params
 
@@ -612,7 +652,7 @@ interface Prompt : PassthroughObject {
  * Sent from the client to request a list of prompts and prompt templates the server has.
  */
 abstract class ListPromptsRequest : ClientRequest, PaginatedRequest {
-    final override val method: String = "prompts/list"
+    final override val method: Method = Method.Defined.PromptsList
 }
 
 /**
@@ -626,7 +666,7 @@ interface ListPromptsResult : ServerResult, PaginatedResult {
  * Used by the client to get a prompt provided by the server.
  */
 abstract class GetPromptRequest : ClientRequest {
-    final override val method: String = "prompts/get"
+    final override val method: Method = Method.Defined.PromptsGet
     abstract override val params: Params
 
     interface Params : BaseRequestParams {
@@ -718,7 +758,7 @@ interface GetPromptResult : ServerResult {
  * An optional notification from the server to the client, informing it that the list of prompts it offers has changed. This may be issued by servers without any previous subscription from the client.
  */
 abstract class PromptListChangedNotification : ServerNotification {
-    final override val method: String = "notifications/prompts/list_changed"
+    final override val method: Method = Method.Defined.NotificationsPromptsListChanged
 }
 
 /* Tools */
@@ -751,7 +791,7 @@ interface Tool : PassthroughObject {
  * Sent from the client to request a list of tools the server has.
  */
 abstract class ListToolsRequest : ClientRequest, PaginatedRequest {
-    final override val method: String = "tools/list"
+    final override val method: Method = Method.Defined.ToolsList
 }
 
 /**
@@ -780,7 +820,7 @@ interface CompatibilityCallToolResult : CallToolResult {
  * Used by the client to invoke a tool provided by the server.
  */
 abstract class CallToolRequest : ClientRequest {
-    final override val method: String = "tools/call"
+    final override val method: Method = Method.Defined.ToolsCall
     abstract override val params: Params
 
     interface Params : BaseRequestParams {
@@ -793,7 +833,7 @@ abstract class CallToolRequest : ClientRequest {
  * An optional notification from the server to the client, informing it that the list of tools it offers has changed. This may be issued by servers without any previous subscription from the client.
  */
 abstract class ToolListChangedNotification : ServerNotification {
-    final override val method: String = "notifications/tools/list_changed"
+    final override val method: Method = Method.Defined.NotificationsToolsListChanged
 }
 
 /* Logging */
@@ -817,7 +857,7 @@ enum class LoggingLevel {
  * A request from the client to the server, to enable or adjust logging.
  */
 abstract class SetLevelRequest : ClientRequest {
-    final override val method: String = "logging/setLevel"
+    final override val method: Method = Method.Defined.LoggingSetLevel
     abstract override val params: Params
 
     interface Params : BaseRequestParams {
@@ -832,7 +872,7 @@ abstract class SetLevelRequest : ClientRequest {
  * Notification of a log message passed from server to client. If no logging/setLevel request has been sent from the client, the server MAY decide which messages to send automatically.
  */
 abstract class LoggingMessageNotification : ServerNotification {
-    final override val method: String = "notifications/message"
+    final override val method: Method = Method.Defined.NotificationsMessage
     abstract override val params: Params
 
     interface Params : BaseNotificationParams {
@@ -907,7 +947,7 @@ interface SamplingMessage : PassthroughObject {
  * A request from the server to sample an LLM via the client. The client has full discretion over which model to select. The client should also inform the user before beginning sampling, to allow them to inspect the request (human in the loop) and decide whether to approve it.
  */
 abstract class CreateMessageRequest : ServerRequest {
-    final override val method: String = "sampling/createMessage"
+    final override val method: Method = Method.Defined.SamplingCreateMessage
     abstract override val params: Params
 
     interface Params : BaseRequestParams {
@@ -1013,7 +1053,7 @@ abstract class PromptReference : Reference {
  * A request from the client to the server, to ask for completion options.
  */
 abstract class CompleteRequest : ClientRequest {
-    final override val method: String = "completion/complete"
+    final override val method: Method = Method.Defined.CompletionComplete
     abstract override val params: Params
 
     interface Params : BaseRequestParams {
@@ -1086,7 +1126,7 @@ interface Root : PassthroughObject {
  * Sent from the server to request a list of root URIs from the client.
  */
 abstract class ListRootsRequest : ServerRequest {
-    final override val method: String = "roots/list"
+    final override val method: Method = Method.Defined.RootsList
 }
 
 /**
@@ -1100,7 +1140,7 @@ interface ListRootsResult : ClientResult {
  * A notification from the client to the server, informing it that the list of roots has changed.
  */
 abstract class RootsListChangedNotification : ClientNotification {
-    final override val method: String = "notifications/roots/list_changed"
+    final override val method: Method = Method.Defined.NotificationsRootsListChanged
 }
 
 @Suppress("CanBeParameter")
