@@ -1,7 +1,5 @@
 @file:Suppress("unused")
 
-import UnsubscribeRequestSchema.Params
-
 const val LATEST_PROTOCOL_VERSION = "2024-11-05"
 
 val SUPPORTED_PROTOCOL_VERSIONS = arrayOf(
@@ -632,13 +630,151 @@ abstract class GetPromptRequestSchema : RequestSchema {
     }
 }
 
+sealed interface PromptMessageContent {
+    val type: String
+}
+
+sealed interface PromptMessageContentTextOrImage : PromptMessageContent
+
 /**
  * Text provided to or from an LLM.
  */
-abstract class TextContentSchema : PassthroughObject {
-    val type: String = "text"
+abstract class TextContentSchema : PromptMessageContentTextOrImage, PassthroughObject {
+    final override val type: String = "text"
     /**
      * The text content of the message.
      */
     abstract val text: String
+}
+
+/**
+ * An image provided to or from an LLM.
+ */
+abstract class ImageContentSchema : PromptMessageContentTextOrImage, PassthroughObject {
+    final override val type: String = "image"
+    /**
+     * The base64-encoded image data.
+     *
+     * TODO check that it is base64
+     */
+    abstract val data: String
+    /**
+     * The MIME type of the image. Different providers may support different image types.
+     *
+     * TODO ktor's mime
+     */
+    abstract val mimeType: String
+}
+
+/**
+ * The contents of a resource, embedded into a prompt or tool call result.
+ */
+abstract class EmbeddedResourceSchema : PromptMessageContent, PassthroughObject {
+    final override val type: String = "resource"
+    abstract val resource: ResourceContentsSchema
+}
+
+/**
+ * Describes a message returned as part of a prompt.
+ */
+interface PromptMessageSchema : PassthroughObject {
+    val role: Role
+
+    val content: PromptMessageContent
+
+    @Suppress("EnumEntryName")
+    enum class Role {
+        user, assistant,
+    }
+}
+
+/**
+ * The server's response to a prompts/get request from the client.
+ */
+interface GetPromptResultSchema : ResultSchema {
+    /**
+     * An optional description for the prompt.
+     */
+    val description: String?
+    val messages: Array<PromptMessageSchema>
+}
+
+/**
+ * An optional notification from the server to the client, informing it that the list of prompts it offers has changed. This may be issued by servers without any previous subscription from the client.
+ */
+abstract class PromptListChangedNotificationSchema : NotificationSchema {
+    final override val method: String = "notifications/prompts/list_changed"
+}
+
+/* Tools */
+/**
+ * Definition for a tool the client can call.
+ */
+interface ToolSchema : PassthroughObject {
+    /**
+     * The name of the tool.
+     */
+    val name: String
+    /**
+     * A human-readable description of the tool.
+     */
+    val description: String?
+    /**
+     * A JSON Schema object defining the expected parameters for the tool.
+     */
+    val inputSchema: InputSchema
+
+    abstract class InputSchema : PassthroughObject {
+        val type: String = "object"
+        abstract val properties: PassthroughObject?
+    }
+}
+
+/**
+ * Sent from the client to request a list of tools the server has.
+ */
+abstract class ListToolsRequestSchema : PaginatedRequestSchema {
+    final override val method: String = "tools/list"
+}
+
+/**
+ * The server's response to a tools/list request from the client.
+ */
+interface ListToolsResultSchema : PaginatedResultSchema {
+    val tools: Array<ToolSchema>
+}
+
+/**
+ * The server's response to a tool call.
+ */
+interface CallToolResultSchema : ResultSchema {
+    val content: PromptMessageContent
+    val isError: Boolean? get() = false
+}
+
+/**
+ * CallToolResultSchema extended with backwards compatibility to protocol version 2024-10-07.
+ */
+interface CompatibilityCallToolResultSchema : CallToolResultSchema {
+    val toolResult: Any?
+}
+
+/**
+ * Used by the client to invoke a tool provided by the server.
+ */
+abstract class CallToolRequestSchema : RequestSchema {
+    final override val method: String  = "tools/call"
+    abstract override val params: Params
+
+    interface Params : BaseRequestParamsSchema {
+        val name: String
+        val arguments: Map<String, Any?>?
+    }
+}
+
+/**
+ * An optional notification from the server to the client, informing it that the list of tools it offers has changed. This may be issued by servers without any previous subscription from the client.
+ */
+abstract class ToolListChangedNotificationSchema : NotificationSchema {
+    final override val method: String = "notifications/tools/list_changed"
 }
