@@ -1,3 +1,4 @@
+import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -5,6 +6,10 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.JsonContentPolymorphicSerializer
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 internal object ErrorCodeSerializer : KSerializer<ErrorCode> {
     override val descriptor: SerialDescriptor =
@@ -35,5 +40,35 @@ internal object RequestMethodSerializer : KSerializer<Method> {
         val decodedString = decoder.decodeString()
         return Method.Defined.entries.firstOrNull { it.value == decodedString }
             ?: Method.Unknown(decodedString)
+    }
+}
+
+internal object StopReasonSerializer : KSerializer<StopReason> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("StopReason", PrimitiveKind.STRING)
+
+    @OptIn(ExperimentalSerializationApi::class)
+    override fun serialize(encoder: Encoder, value: StopReason) {
+        encoder.encodeString(value.value)
+    }
+
+    override fun deserialize(decoder: Decoder): StopReason {
+        val decodedString = decoder.decodeString()
+        return when (decodedString) {
+            StopReason.StopSequence.value -> StopReason.StopSequence
+            StopReason.MaxTokens.value -> StopReason.MaxTokens
+            StopReason.EndTurn.value -> StopReason.EndTurn
+            else -> StopReason.Other(decodedString)
+        }
+    }
+}
+
+internal object ReferencePolymorphicSerializer : JsonContentPolymorphicSerializer<Reference>(Reference::class) {
+    override fun selectDeserializer(element: JsonElement): DeserializationStrategy<Reference> {
+        return when (element.jsonObject.getValue("type").jsonPrimitive.content) {
+            ResourceReference.TYPE -> ResourceReference.serializer()
+            PromptReference.TYPE -> PromptReference.serializer()
+            else -> UnknownReference.serializer()
+        }
     }
 }

@@ -4,7 +4,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlin.io.encoding.Base64
 
 const val LATEST_PROTOCOL_VERSION = "2024-11-05"
 
@@ -15,7 +14,6 @@ val SUPPORTED_PROTOCOL_VERSIONS = arrayOf(
 
 const val JSONRPC_VERSION: String = "2.0"
 
-// line 15
 /**
  * A progress token, used to associate progress notifications with the original request.
  *
@@ -106,9 +104,6 @@ sealed interface RequestResult : WithMeta
  */
 typealias RequestId = String
 
-/**
- * TODO
- */
 @Serializable
 sealed interface JSONRPCMessage
 
@@ -264,15 +259,19 @@ data class ClientCapabilities(
 
 @Serializable
 sealed interface ClientRequest : Request
+
 @Serializable
 sealed interface ClientNotification : Notification
+
 @Serializable
 sealed interface ClientResult : RequestResult
 
 @Serializable
 sealed interface ServerRequest : Request
+
 @Serializable
 sealed interface ServerNotification : Notification
+
 @Serializable
 sealed interface ServerResult : RequestResult
 
@@ -294,7 +293,7 @@ data class InitializeRequest(
         val capabilities: ClientCapabilities,
         val clientInfo: Implementation,
         override val _meta: JsonObject? = null,
-    ): BaseRequestParams
+    ) : BaseRequestParams
 }
 
 @Serializable
@@ -396,8 +395,7 @@ sealed interface Progress {
     /**
      * Total number of items to process (or total progress required), if known.
      */
-    // todo maybe number?
-    val total: Int?
+    val total: Double?
 }
 
 /**
@@ -405,7 +403,7 @@ sealed interface Progress {
  */
 @Serializable
 data class ProgressNotification(
-    override val params: Params
+    override val params: Params,
 ) : ClientNotification, ServerNotification, JSONRPCNotification() {
     override val method: Method = Method.Defined.NotificationsProgress
 
@@ -417,7 +415,7 @@ data class ProgressNotification(
         val progressToken: ProgressToken,
         override val _meta: JsonObject?,
         override val progress: Int,
-        override val total: Int?,
+        override val total: Double?,
     ) : BaseNotificationParams, Progress
 }
 
@@ -477,8 +475,6 @@ data class TextResourceContents(
 data class BlobResourceContents(
     /**
      * A base64-encoded string representing the binary data of the item.
-     *
-     * TODO check that it is base64, in ZOD: z.string().base64()
      */
     val blob: String,
     override val uri: String,
@@ -508,8 +504,6 @@ data class Resource(
     val description: String?,
     /**
      * The MIME type of this resource, if known.
-     *
-     * TODO ktor's MIME
      */
     val mimeType: String?,
 )
@@ -537,8 +531,6 @@ data class ResourceTemplate(
     val description: String?,
     /**
      * The MIME type for all resources that match this template. This should only be included if all resources matching this template have the same type.
-     *
-     * TODO ktor's MIME
      */
     val mimeType: String?,
 )
@@ -611,7 +603,7 @@ data class ReadResourceRequest(
 class ReadResourceResult(
     val contents: Array<ResourceContents>,
     override val _meta: JsonObject? = null,
-): ServerResult
+) : ServerResult
 
 /**
  * An optional notification from the server to the client, informing it that the list of resources it can read from has changed. This may be issued by servers without any previous subscription from the client.
@@ -796,15 +788,11 @@ data class TextContent(
 data class ImageContent(
     /**
      * The base64-encoded image data.
-     *
-     * TODO check that it is base64
      */
     val data: String,
 
     /**
      * The MIME type of the image. Different providers may support different image types.
-     *
-     * TODO ktor's mime
      */
     val mimeType: String,
 ) : PromptMessageContentTextOrImage {
@@ -923,7 +911,7 @@ data class CallToolResult(
     override val content: PromptMessageContent,
     override val isError: Boolean? = false,
     override val _meta: JsonObject? = null,
-): CallToolResultBase
+) : CallToolResultBase
 
 /**
  * [CallToolResult] extended with backwards compatibility to protocol version 2024-10-07.
@@ -1035,210 +1023,255 @@ data class LoggingMessageNotification(
 /**
  * Hints to use for model selection.
  */
-interface ModelHint {
+@Serializable
+data class ModelHint(
     /**
      * A hint for a model name.
      */
-    val name: String?
-}
+    val name: String?,
+)
 
 /**
  * The server's preferences for model selection, requested of the client during sampling.
  */
-interface ModelPreferences {
+@Suppress("CanBeParameter")
+@Serializable
+class ModelPreferences(
     /**
      * Optional hints to use for model selection.
      */
-    val hints: Array<ModelHint>?
-
+    val hints: Array<ModelHint>?,
     /**
      * How much to prioritize cost when selecting a model.
-     *
-     * TODO MIN 0, MAX 1
      */
-    val costPriority: Double?
-
+    val costPriority: Double?,
     /**
      * How much to prioritize sampling speed (latency) when selecting a model.
-     *
-     * TODO MIN 0, MAX 1
      */
-    val speedPriority: Double?
-
+    val speedPriority: Double?,
     /**
      * How much to prioritize intelligence and capabilities when selecting a model.
-     *
-     * TODO MIN 0, MAX 1
      */
-    val intelligencePriority: Double?
+    val intelligencePriority: Double?,
+) {
+    init {
+        require(costPriority == null || costPriority in 0.0..1.0) {
+            "costPriority must be in 0.0 <= x <= 1.0 value range"
+        }
+
+        require(speedPriority == null || speedPriority in 0.0..1.0) {
+            "costPriority must be in 0.0 <= x <= 1.0 value range"
+        }
+
+        require(intelligencePriority == null || intelligencePriority in 0.0..1.0) {
+            "intelligencePriority must be in 0.0 <= x <= 1.0 value range"
+        }
+    }
 }
 
 /**
  * Describes a message issued to or received from an LLM API.
  */
-interface SamplingMessage {
-    val role: Role
-    val content: PromptMessageContentTextOrImage
-}
+@Serializable
+data class SamplingMessage(
+    val role: Role,
+    val content: PromptMessageContentTextOrImage,
+)
 
 /**
  * A request from the server to sample an LLM via the client. The client has full discretion over which model to select. The client should also inform the user before beginning sampling, to allow them to inspect the request (human in the loop) and decide whether to approve it.
  */
-abstract class CreateMessageRequest : ServerRequest, JSONRPCRequest() {
-    final override val method: Method = Method.Defined.SamplingCreateMessage
-    abstract override val params: Params
+@Serializable
+data class CreateMessageRequest(
+    override val id: RequestId,
+    override val params: Params,
+) : ServerRequest, JSONRPCRequest() {
+    override val method: Method = Method.Defined.SamplingCreateMessage
 
-    interface Params : BaseRequestParams {
-        val messages: Array<SamplingMessage>
-
+    @Serializable
+    class Params(
+        val messages: Array<SamplingMessage>,
         /**
          * An optional system prompt the server wants to use for sampling. The client MAY modify or omit this prompt.
          */
-        val systemPrompt: String?
-
+        val systemPrompt: String?,
         /**
          * A request to include context from one or more MCP servers (including the caller), to be attached to the prompt. The client MAY ignore this request.
          */
-        val includeContext: IncludeContext?
-        val temperature: Double?
-
+        val includeContext: IncludeContext?,
+        val temperature: Double?,
         /**
          * The maximum number of tokens to sample, as requested by the server. The client MAY choose to sample fewer tokens than requested.
          */
-        val maxTokens: Int
-        val stopSequences: Array<String>?
-
+        val maxTokens: Int,
+        val stopSequences: Array<String>?,
         /**
          * Optional metadata to pass through to the LLM provider. The format of this metadata is provider-specific.
          */
-        val metadata: JsonObject?
-
+        val metadata: JsonObject?,
         /**
          * The server's preferences for which model to select.
          */
-        val modelPreferences: ModelPreferences?
-
+        val modelPreferences: ModelPreferences?,
+        override val _meta: JsonObject? = null,
+    ) : BaseRequestParams {
+        @Serializable
         enum class IncludeContext { none, thisServer, allServers }
     }
+}
+
+@Serializable(with = StopReasonSerializer::class)
+sealed interface StopReason {
+    val value: String
+
+    @Serializable
+    data object EndTurn : StopReason {
+        override val value: String = "endTurn"
+    }
+
+    @Serializable
+    data object StopSequence : StopReason {
+        override val value: String = "stopSequence"
+    }
+
+    @Serializable
+    data object MaxTokens : StopReason {
+        override val value: String = "maxTokens"
+    }
+
+    @Serializable
+    @JvmInline
+    value class Other(override val value: String) : StopReason
 }
 
 /**
  * The client's response to a sampling/create_message request from the server. The client should inform the user before returning the sampled message, to allow them to inspect the response (human in the loop) and decide whether to allow the server to see it.
  */
-interface CreateMessageResult : ClientResult {
+@Serializable
+data class CreateMessageResult(
     /**
      * The name of the model that generated the message.
      */
-    val model: String
-
+    val model: String,
     /**
      * The reason why sampling stopped.
      */
-    val stopReason: StopReason?
-    val role: Role
-
-    val content: PromptMessageContentTextOrImage
-
-    sealed interface StopReason {
-        val value: String
-
-        data object EndTurn : StopReason {
-            override val value: String = "endTurn"
-        }
-
-        data object StopSequence : StopReason {
-            override val value: String = "stopSequence"
-        }
-
-        data object MaxTokens : StopReason {
-            override val value: String = "maxTokens"
-        }
-
-        @JvmInline
-        value class Other(override val value: String) : StopReason
-    }
-}
+    val stopReason: StopReason?,
+    val role: Role,
+    val content: PromptMessageContentTextOrImage,
+    override val _meta: JsonObject? = null,
+) : ClientResult
 
 /* Autocomplete */
-sealed interface Reference
+@Serializable(with = ReferencePolymorphicSerializer::class)
+sealed interface Reference {
+    val type: String
+}
 
 /**
  * A reference to a resource or resource template definition.
  */
-abstract class ResourceReference : Reference {
-    val type: String = "ref/resource"
-
+@Serializable
+data class ResourceReference(
     /**
      * The URI or URI template of the resource.
      */
-    abstract val uri: String
+    val uri: String,
+) : Reference {
+    override val type: String = TYPE
+
+    companion object {
+        const val TYPE = "ref/resource"
+    }
 }
 
 /**
  * Identifies a prompt.
  */
-abstract class PromptReference : Reference {
-    val type: String = "ref/prompt"
-
+@Serializable
+data class PromptReference(
     /**
      * The name of the prompt or prompt template
      */
-    abstract val name: String
+    val name: String,
+) : Reference {
+    override val type: String = TYPE
+
+    companion object {
+        const val TYPE = "ref/prompt"
+    }
 }
 
+/**
+ * Identifies a prompt.
+ */
+@Serializable
+data class UnknownReference(
+    override val type: String,
+) : Reference
 
 /**
  * A request from the client to the server, to ask for completion options.
  */
-abstract class CompleteRequest : ClientRequest, JSONRPCRequest() {
-    final override val method: Method = Method.Defined.CompletionComplete
-    abstract override val params: Params
+@Serializable
+data class CompleteRequest(
+    override val id: RequestId,
+    override val params: Params,
+) : ClientRequest, JSONRPCRequest() {
+    override val method: Method = Method.Defined.CompletionComplete
 
-    interface Params : BaseRequestParams {
-        val ref: Reference
-
+    @Serializable
+    data class Params(
+        val ref: Reference,
         /**
          * The argument's information
          */
-        val argument: Argument
-
-        interface Argument {
+        val argument: Argument,
+        override val _meta: JsonObject? = null,
+    ) : BaseRequestParams {
+        @Serializable
+        data class Argument(
             /**
              * The name of the argument
              */
-            val name: String
-
+            val name: String,
             /**
              * The value of the argument to use for completion matching.
              */
-            val value: String
-        }
+            val value: String,
+        )
     }
 }
 
 /**
  * The server's response to a completion/complete request
  */
-interface CompleteResult : ServerResult {
-    val completion: Completion
-
-    interface Completion {
+@Serializable
+data class CompleteResult(
+    val completion: Completion,
+    override val _meta: JsonObject? = null,
+) : ServerResult {
+    @Suppress("CanBeParameter")
+    @Serializable
+    class Completion(
         /**
          * An array of completion values. Must not exceed 100 items.
-         *
-         * TODO max 100 values
          */
-        val values: Array<String>
-
+        val values: Array<String>,
         /**
          * The total number of completion options available. This can exceed the number of values actually sent in the response.
          */
-        val total: Int?
-
+        val total: Int?,
         /**
          * Indicates whether there are additional completion options beyond those provided in the current response, even if the exact total is unknown.
          */
-        val hasMore: Boolean?
+        val hasMore: Boolean?,
+    ) {
+        init {
+            require(values.size <= 100) {
+                "'values' field must not exceed 100 items"
+            }
+        }
     }
 }
 
@@ -1246,39 +1279,53 @@ interface CompleteResult : ServerResult {
 /**
  * Represents a root directory or file that the server can operate on.
  */
-interface Root {
+@Serializable
+data class Root(
     /**
      * The URI identifying the root. This *must* start with file:// for now.
-     *
-     * TODO startsWith("file://"),
      */
-    val uri: String
+    val uri: String,
 
     /**
      * An optional name for the root.
      */
-    val name: String?
+    val name: String?,
+) {
+    init {
+        require(uri.startsWith("file://")) {
+            "'uri' param must start with 'file://'"
+        }
+    }
 }
 
 /**
  * Sent from the server to request a list of root URIs from the client.
  */
-abstract class ListRootsRequest : ServerRequest, JSONRPCRequest() {
-    final override val method: Method = Method.Defined.RootsList
+@Serializable
+data class ListRootsRequest(
+    override val id: RequestId,
+    override val params: BaseRequestParams? = null,
+) : ServerRequest, JSONRPCRequest() {
+    override val method: Method = Method.Defined.RootsList
 }
 
 /**
  * The client's response to a roots/list request from the server.
  */
-interface ListRootsResult : ClientResult {
-    val roots: Array<Root>
-}
+@Serializable
+class ListRootsResult(
+    val roots: Array<Root>,
+    override val _meta: JsonObject? = null,
+) : ClientResult
 
 /**
  * A notification from the client to the server, informing it that the list of roots has changed.
  */
-abstract class RootsListChangedNotification : ClientNotification, JSONRPCNotification() {
-    final override val method: Method = Method.Defined.NotificationsRootsListChanged
+@Serializable
+data class RootsListChangedNotification(
+    override val params: BaseNotificationParams? = null,
+) : ClientNotification, JSONRPCNotification() {
+    override val method: Method = Method.Defined.NotificationsRootsListChanged
 }
 
 @Suppress("CanBeParameter")
