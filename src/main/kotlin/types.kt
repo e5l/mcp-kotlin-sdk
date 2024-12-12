@@ -1,5 +1,3 @@
-import CancelledNotificationSchema.Params
-
 const val LATEST_PROTOCOL_VERSION = "2024-11-05"
 
 val SUPPORTED_PROTOCOL_VERSIONS = arrayOf(
@@ -192,10 +190,12 @@ interface ClientCapabilitiesSchema : PassthroughObject {
      * Experimental, non-standard capabilities that the client supports.
      */
     val experimental: PassthroughObject?
+
     /**
      * Present if the client supports sampling from an LLM.
      */
     val sampling: PassthroughObject?
+
     /**
      * Present if the client supports listing roots.
      */
@@ -224,6 +224,86 @@ abstract class InitializeRequestSchema : RequestSchema {
         val capabilities: ClientCapabilitiesSchema
         val clientInfo: ImplementationSchema
     }
+}
+
+interface ServerCapabilitiesSchema : PassthroughObject {
+    /**
+     * Experimental, non-standard capabilities that the server supports.
+     */
+    val experimental: PassthroughObject?
+
+    /**
+     * Present if the server supports sending log messages to the client.
+     */
+    val logging: PassthroughObject?
+
+    /**
+     * Present if the server offers any prompt templates.
+     */
+    val prompts: Prompts?
+
+    interface Prompts : PassthroughObject {
+        /**
+         * Whether this server supports issuing notifications for changes to the prompt list.
+         */
+        val listChanged: Boolean?
+    }
+
+    /**
+     * Present if the server offers any resources to read.
+     */
+    val resources: Resources?
+
+    interface Resources : PassthroughObject {
+        /**
+         * Whether this server supports clients subscribing to resource updates.
+         */
+        val subscribe: Boolean?
+
+        /**
+         * Whether this server supports issuing notifications for changes to the resource list.
+         */
+        val listChanged: Boolean?
+    }
+
+    /**
+     * Present if the server offers any tools to call.
+     */
+    val tools: Tools?
+
+    interface Tools : PassthroughObject {
+        /**
+         * Whether this server supports issuing notifications for changes to the tool list.
+         */
+        val listChanged: Boolean?
+    }
+}
+
+/**
+ * After receiving an initialize request from the client, the server sends this response.
+ */
+interface InitializeResultSchema : ResultSchema {
+    /**
+     * The version of the Model Context Protocol that the server wants to use. This may not match the version that the client requested. If the client cannot support this version, it MUST disconnect.
+     */
+    val protocolVersion: String
+    val capabilities: ServerCapabilitiesSchema
+    val serverInfo: ImplementationSchema
+}
+
+/**
+ * This notification is sent from the client to the server after initialization has finished.
+ */
+abstract class InitializedNotificationSchema : NotificationSchema {
+    final override val method: String = "notifications/initialized"
+}
+
+/* Ping */
+/**
+ * A ping, issued by either the server or the client, to check that the other party is still alive. The receiver must promptly respond, or else may be disconnected.
+ */
+abstract class PingRequestSchema : RequestSchema {
+    final override val method: String = "ping"
 }
 
 typealias JSONRPCMessage = JSONRPCMessageSchema
