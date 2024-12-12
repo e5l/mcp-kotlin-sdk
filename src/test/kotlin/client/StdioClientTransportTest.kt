@@ -14,12 +14,12 @@ class StdioClientTransportTest {
     @Test
     fun `should start then close cleanly`() = runTest {
         val client = StdioClientTransport(serverParameters)
-        client.onerror = { error ->
+        client.onError = { error ->
             fail("Unexpected error: $error")
         }
 
         var didClose = false
-        client.onclose = { didClose = true }
+        client.onClose = { didClose = true }
 
         client.start().await()
         assertFalse(didClose, "Transport should not be closed immediately after start")
@@ -31,7 +31,7 @@ class StdioClientTransportTest {
     @Test
     fun `should read messages`() = runTest {
         val client = StdioClientTransport(serverParameters)
-        client.onerror = { error -> fail("Unexpected error: $error") }
+        client.onError = { error -> fail("Unexpected error: $error") }
 
         val messages = listOf<JSONRPCMessage>(
             PingRequest(id = "1", params = null),
@@ -41,7 +41,7 @@ class StdioClientTransportTest {
         val readMessages = mutableListOf<JSONRPCMessage>()
         val finished = CompletableDeferred<Unit>()
 
-        client.onmessage = { message ->
+        client.onMessage = { message ->
             readMessages.add(message)
 
             if (message == messages[1]) {

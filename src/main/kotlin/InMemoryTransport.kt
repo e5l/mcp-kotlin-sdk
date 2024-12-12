@@ -13,9 +13,9 @@ class InMemoryTransport : Transport {
     private var otherTransport: InMemoryTransport? = null
     private val messageQueue: MutableList<JSONRPCMessage> = mutableListOf()
 
-    override var onclose: (() -> Unit)? = null
-    override var onerror: ((Throwable) -> Unit)? = null
-    override var onmessage: (CoroutineScope.(JSONRPCMessage) -> Unit)? = null
+    override var onClose: (() -> Unit)? = null
+    override var onError: ((Throwable) -> Unit)? = null
+    override var onMessage: (CoroutineScope.(JSONRPCMessage) -> Unit)? = null
 
     /**
      * Creates a pair of linked in-memory transports that can communicate with each other.
@@ -35,7 +35,7 @@ class InMemoryTransport : Transport {
         // Process any messages that were queued before start was called
         while (messageQueue.isNotEmpty()) {
             messageQueue.removeFirstOrNull()?.let { message ->
-                onmessage?.invoke(scope, message) // todo?
+                onMessage?.invoke(scope, message) // todo?
             }
         }
         return CompletableDeferred(Unit)
@@ -47,7 +47,7 @@ class InMemoryTransport : Transport {
             val other = otherTransport
             otherTransport = null
             other?.close()
-            onclose?.invoke()
+            onClose?.invoke()
         } catch (e: Throwable) {
             deferred.completeExceptionally(e)
         }
@@ -57,8 +57,8 @@ class InMemoryTransport : Transport {
     override fun send(message: JSONRPCMessage): Deferred<Unit> {
         val other = otherTransport ?: throw IllegalStateException("Not connected")
 
-        if (other.onmessage != null) {
-            other.onmessage?.invoke(scope, message) // todo?
+        if (other.onMessage != null) {
+            other.onMessage?.invoke(scope, message) // todo?
         } else {
             other.messageQueue.add(message)
         }

@@ -43,7 +43,7 @@ class InMemoryTransportTest {
             val message = InitializedNotification()
 
             var receivedMessage: JSONRPCMessage? = null
-            serverTransport.onmessage = { msg ->
+            serverTransport.onMessage = { msg ->
                 receivedMessage = msg
             }
 
@@ -58,7 +58,7 @@ class InMemoryTransportTest {
             val message = InitializedNotification()
 
             var receivedMessage: JSONRPCMessage? = null
-            clientTransport.onmessage = { msg ->
+            clientTransport.onMessage = { msg ->
                 receivedMessage = msg
             }
 
@@ -73,11 +73,11 @@ class InMemoryTransportTest {
             var clientClosed = false
             var serverClosed = false
 
-            clientTransport.onclose = {
+            clientTransport.onClose = {
                 clientClosed = true
             }
 
-            serverTransport.onclose = {
+            serverTransport.onClose = {
                 serverClosed = true
             }
 
@@ -108,7 +108,7 @@ class InMemoryTransportTest {
             val message = InitializedNotification()
 
             var receivedMessage: JSONRPCMessage? = null
-            serverTransport.onmessage = { msg ->
+            serverTransport.onMessage = { msg ->
                 receivedMessage = msg
             }
 

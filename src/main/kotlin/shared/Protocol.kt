@@ -190,15 +190,15 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
      * The Protocol object assumes ownership of the Transport, replacing any callbacks that have already been set, and expects that it is the only user of the Transport instance going forward.
      */
     fun connect(transport: Transport): Deferred<Unit> {
-        transport.onclose = {
+        transport.onClose = {
             this._onclose()
         }
 
-        transport.onerror = {
+        transport.onError = {
             this._onerror(it)
         }
 
-        transport.onmessage = { message ->
+        transport.onMessage = { message ->
             when (message) {
                 is JSONRPCResponse -> _onresponse(message, null)
                 is JSONRPCRequest -> _onrequest(message)
