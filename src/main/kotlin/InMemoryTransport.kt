@@ -44,15 +44,13 @@ class InMemoryTransport : Transport {
 
     override fun close(): Deferred<Unit> {
         val deferred = CompletableDeferred<Unit>()
-        scope.launch {
-            try {
-                val other = otherTransport
-                otherTransport = null
-                other?.close()
-                onclose?.invoke()
-            } catch (e: Throwable) {
-                deferred.completeExceptionally(e)
-            }
+        try {
+            val other = otherTransport
+            otherTransport = null
+            other?.close()
+            onclose?.invoke()
+        } catch (e: Throwable) {
+            deferred.completeExceptionally(e)
         }
         return deferred
     }
