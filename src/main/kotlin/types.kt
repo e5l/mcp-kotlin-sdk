@@ -394,22 +394,22 @@ sealed interface ProgressBase {
     /**
      * Total number of items to process (or total progress required), if known.
      */
-    // todo maybe number?
-    val total: Int?
+    val total: Double?
 }
+
 /* Progress notifications */
 @Serializable
 open class Progress(
     /**
      * The progress thus far. This should increase every time progress is made, even if the total is unknown.
      */
-    val progress: Int,
+    override val progress: Int,
 
     /**
      * Total number of items to process (or total progress required), if known.
      */
-    val total: Double?
-)
+    override val total: Double?
+) : ProgressBase
 
 /**
  * An out-of-band notification used to inform the receiver of a progress update for a long-running request.
