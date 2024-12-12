@@ -1,7 +1,10 @@
 @file:Suppress("unused", "EnumEntryName")
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlin.io.encoding.Base64
 
 const val LATEST_PROTOCOL_VERSION = "2024-11-05"
 
@@ -36,15 +39,12 @@ sealed interface WithMeta {
 
 @Serializable
 sealed interface BaseRequestParams : WithMeta {
-    override val _meta: JsonObject? // TODO !!!!
-
-    @Serializable
-    data class Meta(
-        /**
-         * If specified, the caller is requesting out-of-band progress notifications for this request (as represented by notifications/progress). The value of this parameter is an opaque token that will be attached to any subsequent notifications. The receiver is not obligated to provide these notifications.
-         */
-        val progressToken: ProgressToken?,
-    )
+    /**
+     * If specified, the caller is requesting out-of-band progress notifications for this request (as represented by notifications/progress). The value of this parameter is an opaque token that will be attached to any subsequent notifications. The receiver is not obligated to provide these notifications.
+     */
+    @Transient
+    val progressToken: ProgressToken?
+        get() = _meta?.get("progressToken")?.jsonPrimitive?.content
 }
 
 @Serializable(with = RequestMethodSerializer::class)
@@ -116,7 +116,8 @@ sealed interface JSONRPCMessage
 /**
  * A request that expects a response.
  */
-abstract class JSONRPCRequest : Request, JSONRPCMessage {
+@Serializable
+sealed class JSONRPCRequest : Request, JSONRPCMessage {
     val jsonrpc: String = JSONRPC_VERSION
     abstract val id: RequestId
 }
@@ -125,7 +126,7 @@ abstract class JSONRPCRequest : Request, JSONRPCMessage {
  * A notification which does not expect a response.
  */
 @Serializable
-abstract class JSONRPCNotification : Notification, JSONRPCMessage {
+sealed class JSONRPCNotification : Notification, JSONRPCMessage {
     val jsonrpc: String = JSONRPC_VERSION
 }
 
@@ -133,10 +134,11 @@ abstract class JSONRPCNotification : Notification, JSONRPCMessage {
  * A successful (non-error) response to a request.
  */
 @Serializable
-abstract class JSONRPCResponse : JSONRPCMessage {
+data class JSONRPCResponse(
+    val id: RequestId,
+    val result: RequestResult,
+) : JSONRPCMessage {
     val jsonrpc: String = JSONRPC_VERSION
-    abstract val id: RequestId
-    abstract val result: RequestResult
 }
 
 /**
@@ -202,6 +204,7 @@ object EmptyResult : ClientResult, ServerResult {
  *
  * A client MUST NOT attempt to cancel its `initialize` request.
  */
+@Serializable
 data class CancelledNotification(
     override val params: Params,
 ) : ClientNotification, ServerNotification, JSONRPCNotification() {
@@ -318,58 +321,69 @@ data class ServerCapabilities(
      */
     val tools: Tools?,
 ) {
-    interface Prompts {
+    @Serializable
+    data class Prompts(
         /**
          * Whether this server supports issuing notifications for changes to the prompt list.
          */
-        val listChanged: Boolean?
-    }
+        val listChanged: Boolean?,
+    )
 
-    interface Resources {
+    @Serializable
+    data class Resources(
         /**
          * Whether this server supports clients subscribing to resource updates.
          */
-        val subscribe: Boolean?
-
+        val subscribe: Boolean?,
         /**
          * Whether this server supports issuing notifications for changes to the resource list.
          */
-        val listChanged: Boolean?
-    }
+        val listChanged: Boolean?,
+    )
 
-    interface Tools {
+    @Serializable
+    data class Tools(
         /**
          * Whether this server supports issuing notifications for changes to the tool list.
          */
-        val listChanged: Boolean?
-    }
+        val listChanged: Boolean?,
+    )
 }
 
 /**
  * After receiving an initialize request from the client, the server sends this response.
  */
-interface InitializeResult : ServerResult {
+@Serializable
+data class InitializeResult(
     /**
      * The version of the Model Context Protocol that the server wants to use. This may not match the version that the client requested. If the client cannot support this version, it MUST disconnect.
      */
-    val protocolVersion: String
-    val capabilities: ServerCapabilities
-    val serverInfo: Implementation
-}
+    val protocolVersion: String,
+    val capabilities: ServerCapabilities,
+    val serverInfo: Implementation,
+    override val _meta: JsonObject? = null,
+) : ServerResult
 
 /**
  * This notification is sent from the client to the server after initialization has finished.
  */
-abstract class InitializedNotification : ClientNotification, JSONRPCNotification() {
-    final override val method: Method = Method.Defined.NotificationsInitialized
+@Serializable
+data class InitializedNotification(
+    override val params: BaseNotificationParams? = null,
+) : ClientNotification, JSONRPCNotification() {
+    override val method: Method = Method.Defined.NotificationsInitialized
 }
 
 /* Ping */
 /**
  * A ping, issued by either the server or the client, to check that the other party is still alive. The receiver must promptly respond, or else may be disconnected.
  */
-abstract class PingRequest : ServerRequest, ClientRequest, JSONRPCRequest() {
-    final override val method: Method = Method.Defined.Ping
+@Serializable
+data class PingRequest(
+    override val id: RequestId,
+    override val params: BaseRequestParams? = null,
+) : ServerRequest, ClientRequest, JSONRPCRequest() {
+    override val method: Method = Method.Defined.Ping
 }
 
 /* Progress notifications */
@@ -390,15 +404,15 @@ sealed interface Progress {
 /**
  * An out-of-band notification used to inform the receiver of a progress update for a long-running request.
  */
-abstract class ProgressNotification : ClientNotification, ServerNotification, JSONRPCNotification() {
-    final override val method: Method = Method.Defined.NotificationsProgress
-    abstract override val params: Params
-
-    @Serializable
+data class ProgressNotification(
+    override val params: Params
+) : ClientNotification, ServerNotification, JSONRPCNotification() {
+    override val method: Method = Method.Defined.NotificationsProgress
 
     /**
      * The progress token which was given in the initial request, used to associate this notification with the request that is proceeding.
      */
+    @Serializable
     class Params(
         val progressToken: ProgressToken,
         override val _meta: JsonObject?,
@@ -408,19 +422,23 @@ abstract class ProgressNotification : ClientNotification, ServerNotification, JS
 }
 
 /* Pagination */
-interface PaginatedRequest : Request {
+@Serializable
+sealed interface PaginatedRequest : Request {
     abstract override val params: Params?
 
-    interface Params : BaseRequestParams {
+    @Serializable
+    data class Params(
         /**
          * An opaque token representing the current pagination position.
          * If provided, the server should return results starting after this cursor.
          */
-        val cursor: Cursor?
-    }
+        val cursor: Cursor?,
+        override val _meta: JsonObject? = null,
+    ) : BaseRequestParams
 }
 
-interface PaginatedResult : RequestResult {
+@Serializable
+sealed interface PaginatedResult : RequestResult {
     /**
      * An opaque token representing the pagination position after the last returned result.
      * If present, there may be more results available.
@@ -432,6 +450,7 @@ interface PaginatedResult : RequestResult {
 /**
  * The contents of a specific resource or sub-resource.
  */
+@Serializable
 sealed interface ResourceContents {
     /**
      * The URI of this resource.
@@ -444,155 +463,184 @@ sealed interface ResourceContents {
     val mimeType: String?
 }
 
-interface TextResourceContents : ResourceContents {
+@Serializable
+data class TextResourceContents(
     /**
      * The text of the item. This must only be set if the item can actually be represented as text (not binary data).
      */
-    val text: String
-}
+    val text: String,
+    override val uri: String,
+    override val mimeType: String?,
+) : ResourceContents
 
-interface BlobResourceContents : ResourceContents {
+@Serializable
+data class BlobResourceContents(
     /**
      * A base64-encoded string representing the binary data of the item.
      *
      * TODO check that it is base64, in ZOD: z.string().base64()
      */
-    val blob: String
-}
+    val blob: String,
+    override val uri: String,
+    override val mimeType: String?,
+) : ResourceContents
 
 /**
  * A known resource that the server is capable of reading.
  */
-interface Resource {
+@Serializable
+data class Resource(
     /**
      * The URI of this resource.
      */
-    val uri: String
-
+    val uri: String,
     /**
      * A human-readable name for this resource.
      *
      * This can be used by clients to populate UI elements.
      */
-    val name: String
-
+    val name: String,
     /**
      * A description of what this resource represents.
      *
      * This can be used by clients to improve the LLM's understanding of available resources. It can be thought of like a "hint" to the model.
      */
-    val description: String?
-
+    val description: String?,
     /**
      * The MIME type of this resource, if known.
      *
      * TODO ktor's MIME
      */
-    val mimeType: String?
-}
+    val mimeType: String?,
+)
 
 /**
  * A template description for resources available on the server.
  */
-interface ResourceTemplate {
+@Serializable
+data class ResourceTemplate(
     /**
      * A URI template (according to RFC 6570) that can be used to construct resource URIs.
      */
-    val uriTemplate: String
-
+    val uriTemplate: String,
     /**
      * A human-readable name for the type of resource this template refers to.
      *
      * This can be used by clients to populate UI elements.
      */
-    val name: String
-
+    val name: String,
     /**
      * A description of what this template is for.
      *
      * This can be used by clients to improve the LLM's understanding of available resources. It can be thought of like a "hint" to the model.
      */
-    val description: String?
-
+    val description: String?,
     /**
      * The MIME type for all resources that match this template. This should only be included if all resources matching this template have the same type.
      *
      * TODO ktor's MIME
      */
-    val mimeType: String?
-}
+    val mimeType: String?,
+)
 
 /**
  * Sent from the client to request a list of resources the server has.
  */
-abstract class ListResourcesRequest : ClientRequest, PaginatedRequest, JSONRPCRequest() {
-    final override val method: Method = Method.Defined.ResourcesList
+@Serializable
+data class ListResourcesRequest(
+    override val id: RequestId,
+    override val params: PaginatedRequest.Params? = null,
+) : ClientRequest, PaginatedRequest, JSONRPCRequest() {
+    override val method: Method = Method.Defined.ResourcesList
 }
 
 /**
  * The server's response to a resources/list request from the client.
  */
-interface ListResourcesResult : ServerResult, PaginatedResult {
-    val resources: Array<Resource>
-}
+@Serializable
+class ListResourcesResult(
+    val resources: Array<Resource>,
+    override val nextCursor: Cursor?,
+    override val _meta: JsonObject? = null,
+) : ServerResult, PaginatedResult
 
 /**
  * Sent from the client to request a list of resource templates the server has.
  */
-abstract class ListResourceTemplatesRequest : ClientRequest, PaginatedRequest, JSONRPCRequest() {
-    final override val method: Method = Method.Defined.ResourcesTemplatesList
+@Serializable
+data class ListResourceTemplatesRequest(
+    override val id: RequestId,
+    override val params: PaginatedRequest.Params? = null,
+) : ClientRequest, PaginatedRequest, JSONRPCRequest() {
+    override val method: Method = Method.Defined.ResourcesTemplatesList
 }
 
 /**
  * The server's response to a resources/templates/list request from the client.
  */
-interface ListResourceTemplatesResult : ServerResult, PaginatedResult {
-    val resourceTemplates: Array<ResourceTemplate>
-}
+@Serializable
+class ListResourceTemplatesResult(
+    val resourceTemplates: Array<ResourceTemplate>,
+    override val nextCursor: Cursor?,
+    override val _meta: JsonObject? = null,
+) : ServerResult, PaginatedResult
 
 /**
  * Sent from the client to the server, to read a specific resource URI.
  */
-abstract class ReadResourceRequest : ClientRequest {
-    final override val method: Method = Method.Defined.ResourcesRead
-    abstract override val params: Params
+@Serializable
+data class ReadResourceRequest(
+    override val params: Params,
+) : ClientRequest {
+    override val method: Method = Method.Defined.ResourcesRead
 
-    interface Params : BaseRequestParams {
+    @Serializable
+    data class Params(
         /**
          * The URI of the resource to read. The URI can use any protocol; it is up to the server how to interpret it.
          */
-        val uri: String
-    }
+        val uri: String,
+        override val _meta: JsonObject? = null,
+    ) : BaseRequestParams
 }
 
 /**
  * The server's response to a resources/read request from the client.
  */
-interface ReadResourceResult : ServerResult {
-    // TODO original z.union([TextResourceContents, BlobResourceContents]),
-    val contents: Array<ResourceContents>
-}
+@Serializable
+class ReadResourceResult(
+    val contents: Array<ResourceContents>,
+    override val _meta: JsonObject? = null,
+): ServerResult
 
 /**
  * An optional notification from the server to the client, informing it that the list of resources it can read from has changed. This may be issued by servers without any previous subscription from the client.
  */
-abstract class ResourceListChangedNotification : ServerNotification, JSONRPCNotification() {
-    final override val method: Method = Method.Defined.NotificationsResourcesListChanged
+@Serializable
+data class ResourceListChangedNotification(
+    override val params: BaseNotificationParams? = null,
+) : ServerNotification, JSONRPCNotification() {
+    override val method: Method = Method.Defined.NotificationsResourcesListChanged
 }
 
 /**
  * Sent from the client to request resources/updated notifications from the server whenever a particular resource changes.
  */
-abstract class SubscribeRequest : ClientRequest, JSONRPCRequest() {
-    final override val method: Method = Method.Defined.ResourcesSubscribe
-    abstract override val params: Params
+@Serializable
+data class SubscribeRequest(
+    override val id: RequestId,
+    override val params: Params,
+) : ClientRequest, JSONRPCRequest() {
+    override val method: Method = Method.Defined.ResourcesSubscribe
 
-    interface Params : BaseRequestParams {
+    @Serializable
+    data class Params(
         /**
          * The URI of the resource to subscribe to. The URI can use any protocol; it is up to the server how to interpret it.
          */
-        val uri: String
-    }
+        val uri: String,
+        override val _meta: JsonObject? = null,
+    ) : BaseRequestParams
 }
 
 /**
