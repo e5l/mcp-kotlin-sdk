@@ -134,7 +134,7 @@ enum class ErrorCode(val code: Int) {
 @Serializable
 class JSONRPCErrorSchema(
     val id: RequestIdSchema,
-    val error: Error
+    val error: Error,
 ) : JSONRPCMessageSchema {
     val jsonrpc: String = JSONRPC_VERSION
 
@@ -142,7 +142,7 @@ class JSONRPCErrorSchema(
     data class Error(
         val code: Int,
         val message: String,
-        val data: JsonObject?
+        val data: JsonObject?,
     )
 }
 
@@ -150,7 +150,7 @@ class JSONRPCErrorSchema(
 /**
  * A response that indicates success but carries no data.
  */
-object EmptyResultSchema : ResultSchema {
+object EmptyResultSchema : ClientResultSchema, ServerResultSchema {
     override val additionalProperties: Map<String, JsonObject?> = emptyMap()
     override val _meta: PassthroughObject? = null
 }
@@ -165,7 +165,7 @@ object EmptyResultSchema : ResultSchema {
  *
  * A client MUST NOT attempt to cancel its `initialize` request.
  */
-abstract class CancelledNotificationSchema : NotificationSchema {
+abstract class CancelledNotificationSchema : ClientNotificationSchema, ServerNotificationSchema {
     final override val method: String = "notifications/cancelled"
     abstract override val params: Params
 
@@ -220,10 +220,18 @@ interface ClientCapabilitiesSchema : PassthroughObject {
     }
 }
 
+sealed interface ClientRequestSchema : RequestSchema
+sealed interface ClientNotificationSchema : NotificationSchema
+sealed interface ClientResultSchema : ResultSchema
+
+sealed interface ServerRequestSchema : RequestSchema
+sealed interface ServerNotificationSchema : NotificationSchema
+sealed interface ServerResultSchema : ResultSchema
+
 /**
  * This request is sent from the client to the server when it first connects, asking it to begin initialization.
  */
-abstract class InitializeRequestSchema : RequestSchema {
+abstract class InitializeRequestSchema : ClientRequestSchema {
     final override val method: String = "initialize"
     abstract override val params: Params
 
@@ -293,7 +301,7 @@ interface ServerCapabilitiesSchema : PassthroughObject {
 /**
  * After receiving an initialize request from the client, the server sends this response.
  */
-interface InitializeResultSchema : ResultSchema {
+interface InitializeResultSchema : ServerResultSchema {
     /**
      * The version of the Model Context Protocol that the server wants to use. This may not match the version that the client requested. If the client cannot support this version, it MUST disconnect.
      */
@@ -305,7 +313,7 @@ interface InitializeResultSchema : ResultSchema {
 /**
  * This notification is sent from the client to the server after initialization has finished.
  */
-abstract class InitializedNotificationSchema : NotificationSchema {
+abstract class InitializedNotificationSchema : ClientNotificationSchema {
     final override val method: String = "notifications/initialized"
 }
 
@@ -313,7 +321,7 @@ abstract class InitializedNotificationSchema : NotificationSchema {
 /**
  * A ping, issued by either the server or the client, to check that the other party is still alive. The receiver must promptly respond, or else may be disconnected.
  */
-abstract class PingRequestSchema : RequestSchema {
+abstract class PingRequestSchema : ClientRequestSchema, ServerRequestSchema {
     final override val method: String = "ping"
 }
 
@@ -335,7 +343,7 @@ sealed interface ProgressSchema : PassthroughObject {
 /**
  * An out-of-band notification used to inform the receiver of a progress update for a long-running request.
  */
-abstract class ProgressNotificationSchema : NotificationSchema {
+abstract class ProgressNotificationSchema : ClientNotificationSchema, ServerNotificationSchema {
     final override val method: String = "notifications/progress"
     abstract override val params: Params
 
@@ -349,7 +357,7 @@ abstract class ProgressNotificationSchema : NotificationSchema {
         override val additionalProperties: Map<String, JsonObject?>,
         override val _meta: PassthroughObject?,
         override val progress: Int,
-        override val total: Int?
+        override val total: Int?,
     ) : BaseNotificationParamsSchema, ProgressSchema
 }
 
@@ -471,35 +479,35 @@ interface ResourceTemplateSchema : PassthroughObject {
 /**
  * Sent from the client to request a list of resources the server has.
  */
-abstract class ListResourcesRequestSchema : PaginatedRequestSchema {
+abstract class ListResourcesRequestSchema : ClientRequestSchema, PaginatedRequestSchema {
     final override val method: String = "resources/list"
 }
 
 /**
  * The server's response to a resources/list request from the client.
  */
-interface ListResourcesResultSchema : PaginatedResultSchema {
+interface ListResourcesResultSchema : ServerResultSchema, PaginatedResultSchema {
     val resources: Array<ResourceSchema>
 }
 
 /**
  * Sent from the client to request a list of resource templates the server has.
  */
-abstract class ListResourceTemplatesRequestSchema : PaginatedRequestSchema {
+abstract class ListResourceTemplatesRequestSchema : ClientRequestSchema, PaginatedRequestSchema {
     final override val method: String = "resources/templates/list"
 }
 
 /**
  * The server's response to a resources/templates/list request from the client.
  */
-interface ListResourceTemplatesResultSchema : PaginatedResultSchema {
+interface ListResourceTemplatesResultSchema : ServerResultSchema, PaginatedResultSchema {
     val resourceTemplates: Array<ResourceTemplateSchema>
 }
 
 /**
  * Sent from the client to the server, to read a specific resource URI.
  */
-abstract class ReadResourceRequestSchema : RequestSchema {
+abstract class ReadResourceRequestSchema : ClientRequestSchema {
     final override val method: String = "resources/read"
     abstract override val params: Params
 
@@ -514,7 +522,7 @@ abstract class ReadResourceRequestSchema : RequestSchema {
 /**
  * The server's response to a resources/read request from the client.
  */
-interface ReadResourceResultSchema : ResultSchema {
+interface ReadResourceResultSchema : ServerResultSchema {
     // TODO original z.union([TextResourceContentsSchema, BlobResourceContentsSchema]),
     val contents: Array<ResourceContentsSchema>
 }
@@ -522,14 +530,14 @@ interface ReadResourceResultSchema : ResultSchema {
 /**
  * An optional notification from the server to the client, informing it that the list of resources it can read from has changed. This may be issued by servers without any previous subscription from the client.
  */
-abstract class ResourceListChangedNotificationSchema : NotificationSchema {
+abstract class ResourceListChangedNotificationSchema : ServerNotificationSchema {
     final override val method: String = "notifications/resources/list_changed"
 }
 
 /**
  * Sent from the client to request resources/updated notifications from the server whenever a particular resource changes.
  */
-abstract class SubscribeRequestSchema : RequestSchema {
+abstract class SubscribeRequestSchema : ClientRequestSchema {
     final override val method: String = "resources/subscribe"
     abstract override val params: Params
 
@@ -544,7 +552,7 @@ abstract class SubscribeRequestSchema : RequestSchema {
 /**
  * Sent from the client to request cancellation of resources/updated notifications from the server. This should follow a previous resources/subscribe request.
  */
-abstract class UnsubscribeRequestSchema : RequestSchema {
+abstract class UnsubscribeRequestSchema : ClientRequestSchema {
     final override val method: String = "resources/unsubscribe"
     abstract override val params: Params
 
@@ -559,7 +567,7 @@ abstract class UnsubscribeRequestSchema : RequestSchema {
 /**
  * A notification from the server to the client, informing it that a resource has changed and may need to be read again. This should only be sent if the client previously sent a resources/subscribe request.
  */
-abstract class ResourceUpdatedNotificationSchema : NotificationSchema {
+abstract class ResourceUpdatedNotificationSchema : ServerNotificationSchema {
     final override val method: String = "notifications/resources/updated"
 
     abstract override val params: Params
@@ -616,21 +624,21 @@ interface PromptSchema : PassthroughObject {
 /**
  * Sent from the client to request a list of prompts and prompt templates the server has.
  */
-abstract class ListPromptsRequestSchema : PaginatedRequestSchema {
+abstract class ListPromptsRequestSchema : ClientRequestSchema, PaginatedRequestSchema {
     final override val method: String = "prompts/list"
 }
 
 /**
  * The server's response to a prompts/list request from the client.
  */
-interface ListPromptsResultSchema : PaginatedResultSchema {
+interface ListPromptsResultSchema : ServerResultSchema, PaginatedResultSchema {
     val prompts: Array<PromptSchema>
 }
 
 /**
  * Used by the client to get a prompt provided by the server.
  */
-abstract class GetPromptRequestSchema : RequestSchema {
+abstract class GetPromptRequestSchema : ClientRequestSchema {
     final override val method: String = "prompts/get"
     abstract override val params: Params
 
@@ -711,7 +719,7 @@ interface PromptMessageSchema : PassthroughObject {
 /**
  * The server's response to a prompts/get request from the client.
  */
-interface GetPromptResultSchema : ResultSchema {
+interface GetPromptResultSchema : ServerResultSchema {
     /**
      * An optional description for the prompt.
      */
@@ -722,7 +730,7 @@ interface GetPromptResultSchema : ResultSchema {
 /**
  * An optional notification from the server to the client, informing it that the list of prompts it offers has changed. This may be issued by servers without any previous subscription from the client.
  */
-abstract class PromptListChangedNotificationSchema : NotificationSchema {
+abstract class PromptListChangedNotificationSchema : ServerNotificationSchema {
     final override val method: String = "notifications/prompts/list_changed"
 }
 
@@ -755,21 +763,21 @@ interface ToolSchema : PassthroughObject {
 /**
  * Sent from the client to request a list of tools the server has.
  */
-abstract class ListToolsRequestSchema : PaginatedRequestSchema {
+abstract class ListToolsRequestSchema : ClientRequestSchema, PaginatedRequestSchema {
     final override val method: String = "tools/list"
 }
 
 /**
  * The server's response to a tools/list request from the client.
  */
-interface ListToolsResultSchema : PaginatedResultSchema {
+interface ListToolsResultSchema : ServerResultSchema, PaginatedResultSchema {
     val tools: Array<ToolSchema>
 }
 
 /**
  * The server's response to a tool call.
  */
-interface CallToolResultSchema : ResultSchema {
+interface CallToolResultSchema : ServerResultSchema {
     val content: PromptMessageContent
     val isError: Boolean? get() = false
 }
@@ -784,7 +792,7 @@ interface CompatibilityCallToolResultSchema : CallToolResultSchema {
 /**
  * Used by the client to invoke a tool provided by the server.
  */
-abstract class CallToolRequestSchema : RequestSchema {
+abstract class CallToolRequestSchema : ClientRequestSchema {
     final override val method: String = "tools/call"
     abstract override val params: Params
 
@@ -797,7 +805,7 @@ abstract class CallToolRequestSchema : RequestSchema {
 /**
  * An optional notification from the server to the client, informing it that the list of tools it offers has changed. This may be issued by servers without any previous subscription from the client.
  */
-abstract class ToolListChangedNotificationSchema : NotificationSchema {
+abstract class ToolListChangedNotificationSchema : ServerNotificationSchema {
     final override val method: String = "notifications/tools/list_changed"
 }
 
@@ -821,7 +829,7 @@ enum class LoggingLevelSchema {
 /**
  * A request from the client to the server, to enable or adjust logging.
  */
-abstract class SetLevelRequestSchema : RequestSchema {
+abstract class SetLevelRequestSchema : ClientRequestSchema {
     final override val method: String = "logging/setLevel"
     abstract override val params: Params
 
@@ -836,7 +844,7 @@ abstract class SetLevelRequestSchema : RequestSchema {
 /**
  * Notification of a log message passed from server to client. If no logging/setLevel request has been sent from the client, the server MAY decide which messages to send automatically.
  */
-abstract class LoggingMessageNotificationSchema : NotificationSchema {
+abstract class LoggingMessageNotificationSchema : ServerNotificationSchema {
     final override val method: String = "notifications/message"
     abstract override val params: Params
 
@@ -911,7 +919,7 @@ interface SamplingMessageSchema : PassthroughObject {
 /**
  * A request from the server to sample an LLM via the client. The client has full discretion over which model to select. The client should also inform the user before beginning sampling, to allow them to inspect the request (human in the loop) and decide whether to approve it.
  */
-abstract class CreateMessageRequestSchema : RequestSchema {
+abstract class CreateMessageRequestSchema : ServerRequestSchema {
     final override val method: String = "sampling/createMessage"
     abstract override val params: Params
 
@@ -952,7 +960,7 @@ abstract class CreateMessageRequestSchema : RequestSchema {
 /**
  * The client's response to a sampling/create_message request from the server. The client should inform the user before returning the sampled message, to allow them to inspect the response (human in the loop) and decide whether to allow the server to see it.
  */
-interface CreateMessageResultSchema : ResultSchema {
+interface CreateMessageResultSchema : ClientResultSchema {
     /**
      * The name of the model that generated the message.
      */
@@ -994,16 +1002,19 @@ sealed interface ReferenceSchema : PassthroughObject
  */
 abstract class ResourceReferenceSchema : ReferenceSchema {
     val type: String = "ref/resource"
+
     /**
      * The URI or URI template of the resource.
      */
     abstract val uri: String
 }
+
 /**
  * Identifies a prompt.
  */
 abstract class PromptReferenceSchema : ReferenceSchema {
     val type: String = "ref/prompt"
+
     /**
      * The name of the prompt or prompt template
      */
@@ -1014,12 +1025,13 @@ abstract class PromptReferenceSchema : ReferenceSchema {
 /**
  * A request from the client to the server, to ask for completion options.
  */
-abstract class CompleteRequestSchema : RequestSchema {
+abstract class CompleteRequestSchema : ClientRequestSchema {
     final override val method: String = "completion/complete"
     abstract override val params: Params
 
-    interface Params: BaseRequestParamsSchema {
+    interface Params : BaseRequestParamsSchema {
         val ref: ReferenceSchema
+
         /**
          * The argument's information
          */
@@ -1030,6 +1042,7 @@ abstract class CompleteRequestSchema : RequestSchema {
              * The name of the argument
              */
             val name: String
+
             /**
              * The value of the argument to use for completion matching.
              */
@@ -1041,7 +1054,7 @@ abstract class CompleteRequestSchema : RequestSchema {
 /**
  * The server's response to a completion/complete request
  */
-interface CompleteResultSchema : ResultSchema {
+interface CompleteResultSchema : ServerResultSchema {
     val completion: Completion
 
     interface Completion : PassthroughObject {
@@ -1051,6 +1064,7 @@ interface CompleteResultSchema : ResultSchema {
          * TODO max 100 values
          */
         val values: Array<String>
+
         /**
          * The total number of completion options available. This can exceed the number of values actually sent in the response.
          */
@@ -1074,6 +1088,7 @@ interface RootSchema : PassthroughObject {
      * TODO startsWith("file://"),
      */
     val uri: String
+
     /**
      * An optional name for the root.
      */
@@ -1083,20 +1098,25 @@ interface RootSchema : PassthroughObject {
 /**
  * Sent from the server to request a list of root URIs from the client.
  */
-abstract class ListRootsRequestSchema : RequestSchema {
+abstract class ListRootsRequestSchema : ServerRequestSchema {
     final override val method: String = "roots/list"
 }
 
 /**
  * The client's response to a roots/list request from the server.
  */
-interface ListRootsResultSchema : ResultSchema {
+interface ListRootsResultSchema : ClientResultSchema {
     val roots: Array<RootSchema>
 }
 
 /**
  * A notification from the client to the server, informing it that the list of roots has changed.
  */
-abstract class RootsListChangedNotificationSchema : NotificationSchema {
+abstract class RootsListChangedNotificationSchema : ClientNotificationSchema {
     final override val method: String = "notifications/roots/list_changed"
+}
+
+@Suppress("CanBeParameter")
+class McpError(val code: Int, message: String, val data: Any?) : Exception() {
+    override val message: String = "MCP error ${code}: $message"
 }
