@@ -126,7 +126,7 @@ class JSONRPCError(
     val jsonrpc: String = JSONRPC_VERSION
 
     @Serializable
-    data class Error(
+    class Error(
         val code: Int,
         val message: String,
         val data: JsonObject?,
