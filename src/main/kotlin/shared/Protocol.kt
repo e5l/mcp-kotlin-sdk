@@ -189,7 +189,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
      *
      * The Protocol object assumes ownership of the Transport, replacing any callbacks that have already been set, and expects that it is the only user of the Transport instance going forward.
      */
-    fun connect(transport: Transport): Deferred<Unit> {
+    open fun connect(transport: Transport): Deferred<Unit> {
         transport.onClose = {
             this._onclose()
         }
