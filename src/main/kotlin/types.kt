@@ -23,11 +23,13 @@ typealias ProgressTokenSchema = String
  */
 typealias CursorSchema = String
 
-interface PassthroughObject {
+@Serializable
+sealed interface PassthroughObject {
     val additionalProperties: Map<String, JsonObject?>
 }
 
-interface WithMeta {
+@Serializable
+sealed interface WithMeta {
     /**
      * This result property is reserved by the protocol to allow clients and servers to attach additional metadata to their responses.
      */
@@ -62,13 +64,14 @@ interface NotificationSchema : PassthroughObject {
     val params: BaseNotificationParamsSchema?
 }
 
-interface ResultSchema : PassthroughObject, WithMeta
+@Serializable
+sealed interface ResultSchema : PassthroughObject, WithMeta
 
 /**
  * A uniquely identifying ID for a request in JSON-RPC.
  */
 typealias RequestId = RequestIdSchema
-typealias RequestIdSchema = Any
+typealias RequestIdSchema = String
 
 typealias JSONRPCMessage = JSONRPCMessageSchema
 
@@ -128,28 +131,19 @@ enum class ErrorCode(val code: Int) {
 /**
  * A response to a request that indicates an error occurred.
  */
-abstract class JSONRPCErrorSchema : JSONRPCMessageSchema {
+@Serializable
+class JSONRPCErrorSchema(
+    val id: RequestIdSchema,
+    val error: Error
+) : JSONRPCMessageSchema {
     val jsonrpc: String = JSONRPC_VERSION
-    abstract val id: RequestIdSchema
 
-    abstract val error: Error
-
-    interface Error {
-        /**
-         * The error type that occurred.
-         */
-        val code: Int
-
-        /**
-         * A short description of the error. The message SHOULD be limited to a concise single sentence.
-         */
-        val message: String
-
-        /**
-         * Additional information about the error. The value of this member is defined by the sender (e.g. detailed error information, nested errors etc.).
-         */
-        val data: Any?
-    }
+    @Serializable
+    data class Error(
+        val code: Int,
+        val message: String,
+        val data: JsonObject?
+    )
 }
 
 /* Empty result */

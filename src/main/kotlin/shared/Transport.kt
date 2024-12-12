@@ -1,6 +1,8 @@
 package shared
 
 import JSONRPCMessage
+import kotlinx.coroutines.CoroutineScope
+import kotlin.coroutines.CoroutineContext
 
 /**
  * Describes the minimal contract for a MCP transport that a client or server can communicate over.
@@ -44,5 +46,5 @@ interface Transport {
     /**
      * Callback for when a message (request or response) is received over the connection.
      */
-    var onMessage: ((JSONRPCMessage) -> Unit)?
+    var onMessage: (CoroutineScope.(JSONRPCMessage) -> Unit)?
 }
