@@ -76,8 +76,7 @@ sealed interface Method {
         LoggingSetLevel("logging/setLevel"),
         SamplingCreateMessage("sampling/createMessage"),
         CompletionComplete("completion/complete"),
-        RootsList("roots/list"),
-        ;
+        RootsList("roots/list")
     }
 
     @Serializable
@@ -404,6 +403,7 @@ sealed interface Progress {
 /**
  * An out-of-band notification used to inform the receiver of a progress update for a long-running request.
  */
+@Serializable
 data class ProgressNotification(
     override val params: Params
 ) : ClientNotification, ServerNotification, JSONRPCNotification() {
