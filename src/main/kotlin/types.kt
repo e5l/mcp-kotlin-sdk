@@ -646,157 +646,183 @@ data class SubscribeRequest(
 /**
  * Sent from the client to request cancellation of resources/updated notifications from the server. This should follow a previous resources/subscribe request.
  */
-abstract class UnsubscribeRequest : ClientRequest, JSONRPCRequest() {
-    final override val method: Method = Method.Defined.ResourcesUnsubscribe
-    abstract override val params: Params
+@Serializable
+data class UnsubscribeRequest(
+    override val id: RequestId,
+    override val params: Params,
+) : ClientRequest, JSONRPCRequest() {
+    override val method: Method = Method.Defined.ResourcesUnsubscribe
 
-    interface Params : BaseRequestParams {
+    @Serializable
+    data class Params(
         /**
          * The URI of the resource to unsubscribe from.
          */
-        val uri: String
-    }
+        val uri: String,
+        override val _meta: JsonObject? = null,
+    ) : BaseRequestParams
 }
 
 /**
  * A notification from the server to the client, informing it that a resource has changed and may need to be read again. This should only be sent if the client previously sent a resources/subscribe request.
  */
-abstract class ResourceUpdatedNotification : ServerNotification, JSONRPCNotification() {
-    final override val method: Method = Method.Defined.NotificationsResourcesUpdated
+@Serializable
+data class ResourceUpdatedNotification(
+    override val params: Params,
+) : ServerNotification, JSONRPCNotification() {
+    override val method: Method = Method.Defined.NotificationsResourcesUpdated
 
-    abstract override val params: Params
-
-    interface Params : BaseNotificationParams {
+    @Serializable
+    data class Params(
         /**
          * The URI of the resource that has been updated. This might be a sub-resource of the one that the client actually subscribed to.
          */
-        val uri: String
-    }
+        val uri: String,
+        override val _meta: JsonObject? = null,
+    ) : BaseNotificationParams
 }
 
 /* Prompts */
 /**
  * Describes an argument that a prompt can accept.
  */
-interface PromptArgument {
+@Serializable
+data class PromptArgument(
     /**
      * The name of the argument.
      */
-    val name: String
-
+    val name: String,
     /**
      * A human-readable description of the argument.
      */
-    val description: String?
-
+    val description: String?,
     /**
      * Whether this argument must be provided.
      */
-    val required: Boolean?
-}
+    val required: Boolean?,
+)
 
 /**
  * A prompt or prompt template that the server offers.
  */
-interface Prompt {
+@Serializable
+class Prompt(
     /**
      * The name of the prompt or prompt template.
      */
-    val name: String
-
+    val name: String,
     /**
      * An optional description of what this prompt provides
      */
-    val description: String?
-
+    val description: String?,
     /**
      * A list of arguments to use for templating the prompt.
      */
-    val arguments: Array<PromptArgument>?
-}
+    val arguments: Array<PromptArgument>?,
+)
 
 /**
  * Sent from the client to request a list of prompts and prompt templates the server has.
  */
-abstract class ListPromptsRequest : ClientRequest, PaginatedRequest, JSONRPCRequest() {
-    final override val method: Method = Method.Defined.PromptsList
+@Serializable
+data class ListPromptsRequest(
+    override val id: RequestId,
+    override val params: PaginatedRequest.Params? = null,
+) : ClientRequest, PaginatedRequest, JSONRPCRequest() {
+    override val method: Method = Method.Defined.PromptsList
 }
 
 /**
  * The server's response to a prompts/list request from the client.
  */
-interface ListPromptsResult : ServerResult, PaginatedResult {
-    val prompts: Array<Prompt>
-}
+@Serializable
+class ListPromptsResult(
+    val prompts: Array<Prompt>,
+    override val nextCursor: Cursor?,
+    override val _meta: JsonObject? = null,
+) : ServerResult, PaginatedResult
 
 /**
  * Used by the client to get a prompt provided by the server.
  */
-abstract class GetPromptRequest : ClientRequest, JSONRPCRequest() {
-    final override val method: Method = Method.Defined.PromptsGet
-    abstract override val params: Params
+@Serializable
+data class GetPromptRequest(
+    override val id: RequestId,
+    override val params: Params,
+) : ClientRequest, JSONRPCRequest() {
+    override val method: Method = Method.Defined.PromptsGet
 
-    interface Params : BaseRequestParams {
+    @Serializable
+    data class Params(
         /**
          * The name of the prompt or prompt template.
          */
-        val name: String
+        val name: String,
 
         /**
          * Arguments to use for templating the prompt.
          */
-        val arguments: Map<String, String>?
-    }
+        val arguments: Map<String, String>?,
+
+        override val _meta: JsonObject? = null,
+    ) : BaseRequestParams
 }
 
+@Serializable
 sealed interface PromptMessageContent {
     val type: String
 }
 
+@Serializable
 sealed interface PromptMessageContentTextOrImage : PromptMessageContent
 
 /**
  * Text provided to or from an LLM.
  */
-abstract class TextContent : PromptMessageContentTextOrImage {
-    final override val type: String = "text"
-
+@Serializable
+data class TextContent(
     /**
      * The text content of the message.
      */
-    abstract val text: String
+    val text: String,
+) : PromptMessageContentTextOrImage {
+    override val type: String = "text"
 }
 
 /**
  * An image provided to or from an LLM.
  */
-abstract class ImageContent : PromptMessageContentTextOrImage {
-    final override val type: String = "image"
-
+@Serializable
+data class ImageContent(
     /**
      * The base64-encoded image data.
      *
      * TODO check that it is base64
      */
-    abstract val data: String
+    val data: String,
 
     /**
      * The MIME type of the image. Different providers may support different image types.
      *
      * TODO ktor's mime
      */
-    abstract val mimeType: String
+    val mimeType: String,
+) : PromptMessageContentTextOrImage {
+    override val type: String = "image"
 }
 
 /**
  * The contents of a resource, embedded into a prompt or tool call result.
  */
-abstract class EmbeddedResource : PromptMessageContent {
-    final override val type: String = "resource"
-    abstract val resource: ResourceContents
+@Serializable
+data class EmbeddedResource(
+    val resource: ResourceContents,
+) : PromptMessageContent {
+    override val type: String = "resource"
 }
 
 @Suppress("EnumEntryName")
+@Serializable
 enum class Role {
     user, assistant,
 }
@@ -804,103 +830,138 @@ enum class Role {
 /**
  * Describes a message returned as part of a prompt.
  */
-interface PromptMessage {
-    val role: Role
-
-    val content: PromptMessageContent
-}
+@Serializable
+data class PromptMessage(
+    val role: Role,
+    val content: PromptMessageContent,
+)
 
 /**
  * The server's response to a prompts/get request from the client.
  */
-interface GetPromptResult : ServerResult {
+@Serializable
+class GetPromptResult(
     /**
      * An optional description for the prompt.
      */
-    val description: String?
-    val messages: Array<PromptMessage>
-}
+    val description: String?,
+    val messages: Array<PromptMessage>,
+    override val _meta: JsonObject? = null,
+) : ServerResult
 
 /**
  * An optional notification from the server to the client, informing it that the list of prompts it offers has changed. This may be issued by servers without any previous subscription from the client.
  */
-abstract class PromptListChangedNotification : ServerNotification, JSONRPCNotification() {
-    final override val method: Method = Method.Defined.NotificationsPromptsListChanged
+@Serializable
+data class PromptListChangedNotification(
+    override val params: BaseNotificationParams? = null,
+) : ServerNotification, JSONRPCNotification() {
+    override val method: Method = Method.Defined.NotificationsPromptsListChanged
 }
 
 /* Tools */
 /**
  * Definition for a tool the client can call.
  */
-interface Tool {
+@Serializable
+data class Tool(
     /**
      * The name of the tool.
      */
-    val name: String
-
+    val name: String,
     /**
      * A human-readable description of the tool.
      */
-    val description: String?
-
+    val description: String?,
     /**
      * A JSON  object defining the expected parameters for the tool.
      */
-    val input: Input
-
-    abstract class Input {
+    val input: Input,
+) {
+    @Serializable
+    data class Input(
+        val properties: JsonObject? = null,
+    ) {
         val type: String = "object"
-        abstract val properties: JsonObject?
     }
 }
 
 /**
  * Sent from the client to request a list of tools the server has.
  */
-abstract class ListToolsRequest : ClientRequest, PaginatedRequest, JSONRPCRequest() {
-    final override val method: Method = Method.Defined.ToolsList
+@Serializable
+data class ListToolsRequest(
+    override val id: RequestId,
+    override val params: PaginatedRequest.Params? = null,
+) : ClientRequest, PaginatedRequest, JSONRPCRequest() {
+    override val method: Method = Method.Defined.ToolsList
 }
 
 /**
  * The server's response to a tools/list request from the client.
  */
-interface ListToolsResult : ServerResult, PaginatedResult {
-    val tools: Array<Tool>
-}
+@Serializable
+class ListToolsResult(
+    val tools: Array<Tool>,
+    override val nextCursor: Cursor?,
+    override val _meta: JsonObject? = null,
+) : ServerResult, PaginatedResult
 
 /**
  * The server's response to a tool call.
  */
-interface CallToolResult : ServerResult {
+interface CallToolResultBase : ServerResult {
     val content: PromptMessageContent
     val isError: Boolean? get() = false
 }
 
 /**
- * CallToolResult extended with backwards compatibility to protocol version 2024-10-07.
+ * The server's response to a tool call.
  */
-interface CompatibilityCallToolResult : CallToolResult {
-    val toolResult: JsonObject?
-}
+@Serializable
+data class CallToolResult(
+    override val content: PromptMessageContent,
+    override val isError: Boolean? = false,
+    override val _meta: JsonObject? = null,
+): CallToolResultBase
+
+/**
+ * [CallToolResult] extended with backwards compatibility to protocol version 2024-10-07.
+ */
+@Serializable
+data class CompatibilityCallToolResult(
+    override val content: PromptMessageContent,
+    override val isError: Boolean? = false,
+    override val _meta: JsonObject? = null,
+    val toolResult: JsonObject? = null,
+) : CallToolResultBase
 
 /**
  * Used by the client to invoke a tool provided by the server.
  */
-abstract class CallToolRequest : ClientRequest, JSONRPCRequest() {
-    final override val method: Method = Method.Defined.ToolsCall
-    abstract override val params: Params
+@Serializable
+data class CallToolRequest(
+    override val id: RequestId,
+    override val params: Params,
+) : ClientRequest, JSONRPCRequest() {
+    override val method: Method = Method.Defined.ToolsCall
 
-    interface Params : BaseRequestParams {
-        val name: String
-        val arguments: Map<String, JsonObject?>?
-    }
+    @Serializable
+    data class Params(
+        val name: String,
+        val arguments: Map<String, JsonObject?>?,
+        override val _meta: JsonObject? = null,
+    ) : BaseRequestParams
 }
 
 /**
  * An optional notification from the server to the client, informing it that the list of tools it offers has changed. This may be issued by servers without any previous subscription from the client.
  */
-abstract class ToolListChangedNotification : ServerNotification, JSONRPCNotification() {
-    final override val method: Method = Method.Defined.NotificationsToolsListChanged
+@Serializable
+data class ToolListChangedNotification(
+    override val params: BaseNotificationParams? = null,
+) : ServerNotification, JSONRPCNotification() {
+    override val method: Method = Method.Defined.NotificationsToolsListChanged
 }
 
 /* Logging */
@@ -908,6 +969,7 @@ abstract class ToolListChangedNotification : ServerNotification, JSONRPCNotifica
  * The severity of a log message.
  */
 @Suppress("EnumEntryName")
+@Serializable
 enum class LoggingLevel {
     debug,
     info,
@@ -923,41 +985,50 @@ enum class LoggingLevel {
 /**
  * A request from the client to the server, to enable or adjust logging.
  */
-abstract class SetLevelRequest : ClientRequest, JSONRPCRequest() {
-    final override val method: Method = Method.Defined.LoggingSetLevel
-    abstract override val params: Params
+@Serializable
+data class SetLevelRequest(
+    override val id: RequestId,
+    override val params: Params,
+) : ClientRequest, JSONRPCRequest() {
+    override val method: Method = Method.Defined.LoggingSetLevel
 
-    interface Params : BaseRequestParams {
+    @Serializable
+    data class Params(
         /**
          * The level of logging that the client wants to receive from the server. The server should send all logs at this level and higher (i.e., more severe) to the client as notifications/logging/message.
          */
-        val level: LoggingLevel
-    }
+        val level: LoggingLevel,
+        override val _meta: JsonObject? = null,
+    ) : BaseRequestParams
 }
 
 /**
  * Notification of a log message passed from server to client. If no logging/setLevel request has been sent from the client, the server MAY decide which messages to send automatically.
  */
-abstract class LoggingMessageNotification : ServerNotification, JSONRPCNotification() {
-    final override val method: Method = Method.Defined.NotificationsMessage
-    abstract override val params: Params
+@Serializable
+data class LoggingMessageNotification(
+    override val params: Params,
+) : ServerNotification, JSONRPCNotification() {
+    override val method: Method = Method.Defined.NotificationsMessage
 
-    interface Params : BaseNotificationParams {
+    @Serializable
+    data class Params(
         /**
          * The severity of this log message.
          */
-        val level: LoggingLevel
+        val level: LoggingLevel,
 
         /**
          * An optional name of the logger issuing this message.
          */
-        val logger: String?
+        val logger: String?,
 
         /**
          * The data to be logged, such as a string message or an object. Any JSON serializable type is allowed here.
          */
-        val data: JsonObject?
-    }
+        val data: JsonObject?,
+        override val _meta: JsonObject? = null,
+    ) : BaseNotificationParams
 }
 
 /* Sampling */
