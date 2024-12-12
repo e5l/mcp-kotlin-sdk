@@ -993,10 +993,12 @@ interface CreateMessageResultSchema : ResultSchema {
 }
 
 /* Autocomplete */
+sealed interface ReferenceSchema : PassthroughObject
+
 /**
  * A reference to a resource or resource template definition.
  */
-abstract class ResourceReferenceSchema : PassthroughObject {
+abstract class ResourceReferenceSchema : ReferenceSchema {
     val type: String = "ref/resource"
     /**
      * The URI or URI template of the resource.
@@ -1006,10 +1008,101 @@ abstract class ResourceReferenceSchema : PassthroughObject {
 /**
  * Identifies a prompt.
  */
-abstract class PromptReferenceSchema : PassthroughObject {
+abstract class PromptReferenceSchema : ReferenceSchema {
     val type: String = "ref/prompt"
     /**
      * The name of the prompt or prompt template
      */
     abstract val name: String
+}
+
+
+/**
+ * A request from the client to the server, to ask for completion options.
+ */
+abstract class CompleteRequestSchema : RequestSchema {
+    final override val method: String = "completion/complete"
+    abstract override val params: Params
+
+    interface Params: BaseRequestParamsSchema {
+        val ref: ReferenceSchema
+        /**
+         * The argument's information
+         */
+        val argument: Argument
+
+        interface Argument : PassthroughObject {
+            /**
+             * The name of the argument
+             */
+            val name: String
+            /**
+             * The value of the argument to use for completion matching.
+             */
+            val value: String
+        }
+    }
+}
+
+/**
+ * The server's response to a completion/complete request
+ */
+interface CompleteResultSchema : ResultSchema {
+    val completion: Completion
+
+    interface Completion : PassthroughObject {
+        /**
+         * An array of completion values. Must not exceed 100 items.
+         *
+         * TODO max 100 values
+         */
+        val values: Array<String>
+        /**
+         * The total number of completion options available. This can exceed the number of values actually sent in the response.
+         */
+        val total: Int?
+
+        /**
+         * Indicates whether there are additional completion options beyond those provided in the current response, even if the exact total is unknown.
+         */
+        val hasMore: Boolean?
+    }
+}
+
+/* Roots */
+/**
+ * Represents a root directory or file that the server can operate on.
+ */
+interface RootSchema : PassthroughObject {
+    /**
+     * The URI identifying the root. This *must* start with file:// for now.
+     *
+     * TODO startsWith("file://"),
+     */
+    val uri: String
+    /**
+     * An optional name for the root.
+     */
+    val name: String?
+}
+
+/**
+ * Sent from the server to request a list of root URIs from the client.
+ */
+abstract class ListRootsRequestSchema : RequestSchema {
+    final override val method: String = "roots/list"
+}
+
+/**
+ * The client's response to a roots/list request from the server.
+ */
+interface ListRootsResultSchema : ResultSchema {
+    val roots: Array<RootSchema>
+}
+
+/**
+ * A notification from the client to the server, informing it that the list of roots has changed.
+ */
+abstract class RootsListChangedNotificationSchema : NotificationSchema {
+    final override val method: String = "notifications/roots/list_changed"
 }
