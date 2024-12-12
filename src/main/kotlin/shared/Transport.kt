@@ -1,0 +1,4 @@
+package shared
+
+interface Transport {
+}
