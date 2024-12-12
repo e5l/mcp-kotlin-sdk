@@ -306,4 +306,204 @@ abstract class PingRequestSchema : RequestSchema {
     final override val method: String = "ping"
 }
 
+/* Progress notifications */
+interface ProgressSchema : PassthroughObject {
+    /**
+     * The progress thus far. This should increase every time progress is made, even if the total is unknown.
+     */
+    val progress: Int
+    /**
+     * Total number of items to process (or total progress required), if known.
+     */
+    // todo maybe number?
+    val total: Int?
+}
+
+/**
+ * An out-of-band notification used to inform the receiver of a progress update for a long-running request.
+ */
+abstract class ProgressNotificationSchema : NotificationSchema {
+    final override val method: String = "notifications/progress"
+    abstract override val params: Params
+
+    interface Params : BaseNotificationParamsSchema, ProgressSchema {
+        /**
+         * The progress token which was given in the initial request, used to associate this notification with the request that is proceeding.
+         */
+        val progressToken: ProgressTokenSchema
+    }
+}
+
+/* Pagination */
+interface PaginatedRequestSchema : RequestSchema {
+    abstract override val params: Params?
+
+    interface Params : BaseRequestParamsSchema {
+        /**
+         * An opaque token representing the current pagination position.
+         * If provided, the server should return results starting after this cursor.
+         */
+        val cursor: CursorSchema?
+    }
+}
+
+interface PaginatedResultSchema : ResultSchema {
+    /**
+     * An opaque token representing the pagination position after the last returned result.
+     * If present, there may be more results available.
+     */
+    val nextCursor: CursorSchema?
+}
+
+/* Resources */
+/**
+ * The contents of a specific resource or sub-resource.
+ */
+sealed interface ResourceContentsSchema : PassthroughObject {
+    /**
+     * The URI of this resource.
+     */
+    val uri: String
+    /**
+     * The MIME type of this resource, if known.
+     */
+    val mimeType: String?
+}
+
+interface TextResourceContentsSchema : ResourceContentsSchema {
+    /**
+     * The text of the item. This must only be set if the item can actually be represented as text (not binary data).
+     */
+    val text: String
+}
+
+interface BlobResourceContentsSchema : ResourceContentsSchema {
+    /**
+     * A base64-encoded string representing the binary data of the item.
+     *
+     * TODO check that it is base64, in ZOD: z.string().base64()
+     */
+    val blob: String
+}
+
+/**
+ * A known resource that the server is capable of reading.
+ */
+interface ResourceSchema : PassthroughObject {
+    /**
+     * The URI of this resource.
+     */
+    val uri: String
+
+    /**
+     * A human-readable name for this resource.
+     *
+     * This can be used by clients to populate UI elements.
+     */
+    val name: String
+
+    /**
+     * A description of what this resource represents.
+     *
+     * This can be used by clients to improve the LLM's understanding of available resources. It can be thought of like a "hint" to the model.
+     */
+    val description: String?
+
+    /**
+     * The MIME type of this resource, if known.
+     *
+     * TODO ktor's MIME
+     */
+    val mimeType: String?
+}
+
+/**
+ * A template description for resources available on the server.
+ */
+interface ResourceTemplateSchema : PassthroughObject {
+    /**
+     * A URI template (according to RFC 6570) that can be used to construct resource URIs.
+     */
+    val uriTemplate: String
+
+    /**
+     * A human-readable name for the type of resource this template refers to.
+     *
+     * This can be used by clients to populate UI elements.
+     */
+    val name: String
+
+    /**
+     * A description of what this template is for.
+     *
+     * This can be used by clients to improve the LLM's understanding of available resources. It can be thought of like a "hint" to the model.
+     */
+    val description: String?
+
+    /**
+     * The MIME type for all resources that match this template. This should only be included if all resources matching this template have the same type.
+     *
+     * TODO ktor's MIME
+     */
+    val mimeType: String?
+}
+
+/**
+ * Sent from the client to request a list of resources the server has.
+ */
+abstract class ListResourcesRequestSchema : PaginatedRequestSchema {
+    final override val method: String = "resources/list"
+}
+
+/**
+ * The server's response to a resources/list request from the client.
+ */
+interface ListResourcesResultSchema : PaginatedResultSchema {
+    val resources: Array<ResourceSchema>
+}
+
+/**
+ * Sent from the client to request a list of resource templates the server has.
+ */
+abstract class ListResourceTemplatesRequestSchema : PaginatedRequestSchema {
+    final override val method: String  = "resources/templates/list"
+}
+
+/**
+ * The server's response to a resources/templates/list request from the client.
+ */
+interface ListResourceTemplatesResultSchema : PaginatedResultSchema {
+    val resourceTemplates: Array<ResourceTemplateSchema>
+}
+
+/**
+ * Sent from the client to the server, to read a specific resource URI.
+ */
+abstract class ReadResourceRequestSchema : RequestSchema {
+    final override val method: String = "resources/read"
+    abstract override val params: Params
+
+    interface Params : BaseRequestParamsSchema {
+        /**
+         * The URI of the resource to read. The URI can use any protocol; it is up to the server how to interpret it.
+         */
+        val uri: String
+    }
+}
+
+/**
+ * The server's response to a resources/read request from the client.
+ */
+interface ReadResourceResultSchema : ResultSchema {
+    // TODO original z.union([TextResourceContentsSchema, BlobResourceContentsSchema]),
+    val contents: Array<ResourceContentsSchema>
+}
+
+/**
+ * An optional notification from the server to the client, informing it that the list of resources it can read from has changed. This may be issued by servers without any previous subscription from the client.
+ */
+abstract class ResourceListChangedNotificationSchema : NotificationSchema {
+    final override val method: String = "notifications/resources/list_changed"
+}
+
 typealias JSONRPCMessage = JSONRPCMessageSchema
