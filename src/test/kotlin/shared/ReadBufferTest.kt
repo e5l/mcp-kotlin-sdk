@@ -1,23 +1,16 @@
 package shared
 
-import BaseNotificationParamsSchema
-import JSONRPCNotification
+import InitializedNotification
+import Method
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.Assertions.*
 import java.nio.charset.StandardCharsets
 
-class TestJSONRPCNotification(
-    override val method: String,
-    override val params: BaseNotificationParamsSchema? = null,
-    override val additionalProperties: Map<String, Any?> = emptyMap()
-) : JSONRPCNotification()
-
 class ReadBufferTest {
-    private val testMessage: JSONRPCNotification = TestJSONRPCNotification(
-        method = "foobar"
-    )
+    private val testMessage = InitializedNotification()
     
     private val json = Json { 
         ignoreUnknownKeys = true 
@@ -51,7 +44,7 @@ class ReadBufferTest {
         val readBuffer = ReadBuffer()
 
         // Test clearing buffer
-        readBuffer.append("foobar".toByteArray(StandardCharsets.UTF_8))
+        readBuffer.append(Method.Defined.NotificationsInitialized.value.toByteArray(StandardCharsets.UTF_8))
         readBuffer.clear()
         assertNull(readBuffer.readMessage())
 
