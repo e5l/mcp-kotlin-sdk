@@ -25,24 +25,18 @@ typealias ProgressToken = String
  */
 typealias Cursor = String
 
-// TODO serializer??
-@Serializable
-sealed interface PassthroughObject {
-    val additionalProperties: Map<String, JsonObject?>
-}
-
 @Serializable
 sealed interface WithMeta {
     /**
      * This result property is reserved by the protocol to allow clients and servers to attach additional metadata to their responses.
      */
     @Suppress("PropertyName")
-    val _meta: PassthroughObject?
+    val _meta: JsonObject?
 }
 
 @Serializable
-sealed interface BaseRequestParams : PassthroughObject, WithMeta {
-    override val _meta: Meta?
+sealed interface BaseRequestParams : WithMeta {
+    override val _meta: JsonObject? // TODO !!!!
 
     @Serializable
     data class Meta(
@@ -50,8 +44,7 @@ sealed interface BaseRequestParams : PassthroughObject, WithMeta {
          * If specified, the caller is requesting out-of-band progress notifications for this request (as represented by notifications/progress). The value of this parameter is an opaque token that will be attached to any subsequent notifications. The receiver is not obligated to provide these notifications.
          */
         val progressToken: ProgressToken?,
-        override val additionalProperties: Map<String, JsonObject?> = emptyMap(),
-    ) : PassthroughObject
+    )
 }
 
 @Serializable(with = RequestMethodSerializer::class)
@@ -98,16 +91,16 @@ sealed interface Request {
 }
 
 @Serializable
-sealed interface BaseNotificationParams : PassthroughObject, WithMeta
+sealed interface BaseNotificationParams : WithMeta
 
 @Serializable
-sealed interface Notification : PassthroughObject {
+sealed interface Notification {
     val method: Method
     val params: BaseNotificationParams?
 }
 
 @Serializable
-sealed interface RequestResult : PassthroughObject, WithMeta
+sealed interface RequestResult : WithMeta
 
 /**
  * A uniquely identifying ID for a request in JSON-RPC.
@@ -196,8 +189,7 @@ class JSONRPCError(
  */
 @Serializable
 object EmptyResult : ClientResult, ServerResult {
-    override val additionalProperties: Map<String, JsonObject?> = emptyMap()
-    override val _meta: PassthroughObject? = null
+    override val _meta: JsonObject? = null
 }
 
 /* Cancellation */
@@ -212,7 +204,6 @@ object EmptyResult : ClientResult, ServerResult {
  */
 data class CancelledNotification(
     override val params: Params,
-    override val additionalProperties: Map<String, JsonObject?> = emptyMap(),
 ) : ClientNotification, ServerNotification {
     override val method: Method = Method.Defined.NotificationsCancelled
 
@@ -228,8 +219,7 @@ data class CancelledNotification(
          * An optional string describing the reason for the cancellation. This MAY be logged or presented to the user.
          */
         val reason: String?,
-        override val _meta: PassthroughObject? = null,
-        override val additionalProperties: Map<String, JsonObject?> = emptyMap(),
+        override val _meta: JsonObject? = null,
     ) : BaseNotificationParams
 }
 
@@ -241,90 +231,100 @@ data class CancelledNotification(
 data class Implementation(
     val name: String,
     val version: String,
-    override val additionalProperties: Map<String, JsonObject?> = emptyMap(),
-) : PassthroughObject
+)
 
 /**
  * Capabilities a client may support. Known capabilities are defined here, in this , but this is not a closed set: any client can define its own, additional capabilities.
  */
-interface ClientCapabilities : PassthroughObject {
+@Serializable
+data class ClientCapabilities(
     /**
      * Experimental, non-standard capabilities that the client supports.
      */
-    val experimental: PassthroughObject?
-
+    val experimental: JsonObject?,
     /**
      * Present if the client supports sampling from an LLM.
      */
-    val sampling: PassthroughObject?
-
+    val sampling: JsonObject?,
     /**
      * Present if the client supports listing roots.
      */
-    val roots: Roots?
-
-    interface Roots {
+    val roots: Roots?,
+) {
+    @Serializable
+    data class Roots(
         /**
          * Whether the client supports issuing notifications for changes to the roots list.
          */
-        val listChanged: Boolean?
-    }
+        val listChanged: Boolean?,
+    )
 }
 
+@Serializable
 sealed interface ClientRequest : Request
+@Serializable
 sealed interface ClientNotification : Notification
+@Serializable
 sealed interface ClientResult : RequestResult
 
+@Serializable
 sealed interface ServerRequest : Request
+@Serializable
 sealed interface ServerNotification : Notification
+@Serializable
 sealed interface ServerResult : RequestResult
 
 /**
  * This request is sent from the client to the server when it first connects, asking it to begin initialization.
  */
-abstract class InitializeRequest : ClientRequest {
-    final override val method: Method = Method.Defined.Initialize
-    abstract override val params: Params
-
-    interface Params : BaseRequestParams {
+@Serializable
+data class InitializeRequest(
+    override val method: Method = Method.Defined.Initialize,
+    override val params: Params,
+) : ClientRequest {
+    @Serializable
+    data class Params(
         /**
          * The latest version of the Model Context Protocol that the client supports. The client MAY decide to support older versions as well.
          */
-        val protocolVersion: String
-        val capabilities: ClientCapabilities
-        val clientInfo: Implementation
-    }
+        val protocolVersion: String,
+        val capabilities: ClientCapabilities,
+        val clientInfo: Implementation,
+        override val _meta: JsonObject? = null,
+    ): BaseRequestParams
 }
 
-interface ServerCapabilities : PassthroughObject {
+@Serializable
+data class ServerCapabilities(
     /**
      * Experimental, non-standard capabilities that the server supports.
      */
-    val experimental: PassthroughObject?
-
+    val experimental: JsonObject?,
     /**
      * Present if the server supports sending log messages to the client.
      */
-    val logging: PassthroughObject?
-
+    val logging: JsonObject?,
     /**
      * Present if the server offers any prompt templates.
      */
-    val prompts: Prompts?
-
-    interface Prompts : PassthroughObject {
+    val prompts: Prompts?,
+    /**
+     * Present if the server offers any resources to read.
+     */
+    val resources: Resources?,
+    /**
+     * Present if the server offers any tools to call.
+     */
+    val tools: Tools?,
+) {
+    interface Prompts {
         /**
          * Whether this server supports issuing notifications for changes to the prompt list.
          */
         val listChanged: Boolean?
     }
 
-    /**
-     * Present if the server offers any resources to read.
-     */
-    val resources: Resources?
-
-    interface Resources : PassthroughObject {
+    interface Resources {
         /**
          * Whether this server supports clients subscribing to resource updates.
          */
@@ -336,12 +336,7 @@ interface ServerCapabilities : PassthroughObject {
         val listChanged: Boolean?
     }
 
-    /**
-     * Present if the server offers any tools to call.
-     */
-    val tools: Tools?
-
-    interface Tools : PassthroughObject {
+    interface Tools {
         /**
          * Whether this server supports issuing notifications for changes to the tool list.
          */
@@ -378,7 +373,7 @@ abstract class PingRequest : ClientRequest, ServerRequest {
 
 /* Progress notifications */
 @Serializable
-sealed interface Progress : PassthroughObject {
+sealed interface Progress {
     /**
      * The progress thus far. This should increase every time progress is made, even if the total is unknown.
      */
@@ -405,8 +400,7 @@ abstract class ProgressNotification : ClientNotification, ServerNotification {
      */
     class Params(
         val progressToken: ProgressToken,
-        override val additionalProperties: Map<String, JsonObject?>,
-        override val _meta: PassthroughObject?,
+        override val _meta: JsonObject?,
         override val progress: Int,
         override val total: Int?,
     ) : BaseNotificationParams, Progress
@@ -437,7 +431,7 @@ interface PaginatedResult : RequestResult {
 /**
  * The contents of a specific resource or sub-resource.
  */
-sealed interface ResourceContents : PassthroughObject {
+sealed interface ResourceContents {
     /**
      * The URI of this resource.
      */
@@ -468,7 +462,7 @@ interface BlobResourceContents : ResourceContents {
 /**
  * A known resource that the server is capable of reading.
  */
-interface Resource : PassthroughObject {
+interface Resource {
     /**
      * The URI of this resource.
      */
@@ -499,7 +493,7 @@ interface Resource : PassthroughObject {
 /**
  * A template description for resources available on the server.
  */
-interface ResourceTemplate : PassthroughObject {
+interface ResourceTemplate {
     /**
      * A URI template (according to RFC 6570) that can be used to construct resource URIs.
      */
@@ -635,7 +629,7 @@ abstract class ResourceUpdatedNotification : ServerNotification {
 /**
  * Describes an argument that a prompt can accept.
  */
-interface PromptArgument : PassthroughObject {
+interface PromptArgument {
     /**
      * The name of the argument.
      */
@@ -655,7 +649,7 @@ interface PromptArgument : PassthroughObject {
 /**
  * A prompt or prompt template that the server offers.
  */
-interface Prompt : PassthroughObject {
+interface Prompt {
     /**
      * The name of the prompt or prompt template.
      */
@@ -715,7 +709,7 @@ sealed interface PromptMessageContentTextOrImage : PromptMessageContent
 /**
  * Text provided to or from an LLM.
  */
-abstract class TextContent : PromptMessageContentTextOrImage, PassthroughObject {
+abstract class TextContent : PromptMessageContentTextOrImage {
     final override val type: String = "text"
 
     /**
@@ -727,7 +721,7 @@ abstract class TextContent : PromptMessageContentTextOrImage, PassthroughObject 
 /**
  * An image provided to or from an LLM.
  */
-abstract class ImageContent : PromptMessageContentTextOrImage, PassthroughObject {
+abstract class ImageContent : PromptMessageContentTextOrImage {
     final override val type: String = "image"
 
     /**
@@ -748,7 +742,7 @@ abstract class ImageContent : PromptMessageContentTextOrImage, PassthroughObject
 /**
  * The contents of a resource, embedded into a prompt or tool call result.
  */
-abstract class EmbeddedResource : PromptMessageContent, PassthroughObject {
+abstract class EmbeddedResource : PromptMessageContent {
     final override val type: String = "resource"
     abstract val resource: ResourceContents
 }
@@ -761,7 +755,7 @@ enum class Role {
 /**
  * Describes a message returned as part of a prompt.
  */
-interface PromptMessage : PassthroughObject {
+interface PromptMessage {
     val role: Role
 
     val content: PromptMessageContent
@@ -789,7 +783,7 @@ abstract class PromptListChangedNotification : ServerNotification {
 /**
  * Definition for a tool the client can call.
  */
-interface Tool : PassthroughObject {
+interface Tool {
     /**
      * The name of the tool.
      */
@@ -805,9 +799,9 @@ interface Tool : PassthroughObject {
      */
     val input: Input
 
-    abstract class Input : PassthroughObject {
+    abstract class Input {
         val type: String = "object"
-        abstract val properties: PassthroughObject?
+        abstract val properties: JsonObject?
     }
 }
 
@@ -921,7 +915,7 @@ abstract class LoggingMessageNotification : ServerNotification {
 /**
  * Hints to use for model selection.
  */
-interface ModelHint : PassthroughObject {
+interface ModelHint {
     /**
      * A hint for a model name.
      */
@@ -931,7 +925,7 @@ interface ModelHint : PassthroughObject {
 /**
  * The server's preferences for model selection, requested of the client during sampling.
  */
-interface ModelPreferences : PassthroughObject {
+interface ModelPreferences {
     /**
      * Optional hints to use for model selection.
      */
@@ -962,7 +956,7 @@ interface ModelPreferences : PassthroughObject {
 /**
  * Describes a message issued to or received from an LLM API.
  */
-interface SamplingMessage : PassthroughObject {
+interface SamplingMessage {
     val role: Role
     val content: PromptMessageContentTextOrImage
 }
@@ -997,7 +991,7 @@ abstract class CreateMessageRequest : ServerRequest {
         /**
          * Optional metadata to pass through to the LLM provider. The format of this metadata is provider-specific.
          */
-        val metadata: PassthroughObject?
+        val metadata: JsonObject?
 
         /**
          * The server's preferences for which model to select.
@@ -1046,7 +1040,7 @@ interface CreateMessageResult : ClientResult {
 }
 
 /* Autocomplete */
-sealed interface Reference : PassthroughObject
+sealed interface Reference
 
 /**
  * A reference to a resource or resource template definition.
@@ -1088,7 +1082,7 @@ abstract class CompleteRequest : ClientRequest {
          */
         val argument: Argument
 
-        interface Argument : PassthroughObject {
+        interface Argument {
             /**
              * The name of the argument
              */
@@ -1108,7 +1102,7 @@ abstract class CompleteRequest : ClientRequest {
 interface CompleteResult : ServerResult {
     val completion: Completion
 
-    interface Completion : PassthroughObject {
+    interface Completion {
         /**
          * An array of completion values. Must not exceed 100 items.
          *
@@ -1132,7 +1126,7 @@ interface CompleteResult : ServerResult {
 /**
  * Represents a root directory or file that the server can operate on.
  */
-interface Root : PassthroughObject {
+interface Root {
     /**
      * The URI identifying the root. This *must* start with file:// for now.
      *
