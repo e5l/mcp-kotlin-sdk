@@ -1,3 +1,5 @@
+import CancelledNotificationSchema.Params
+
 const val LATEST_PROTOCOL_VERSION = "2024-11-05"
 
 val SUPPORTED_PROTOCOL_VERSIONS = arrayOf(
@@ -130,6 +132,95 @@ abstract class JSONRPCErrorSchema : JSONRPCMessageSchema {
          * Additional information about the error. The value of this member is defined by the sender (e.g. detailed error information, nested errors etc.).
          */
         val data: Any?
+    }
+}
+
+/* Empty result */
+/**
+ * A response that indicates success but carries no data.
+ */
+object EmptyResultSchema : ResultSchema {
+    override val additionalProperties: Map<String, Any?> = emptyMap()
+    override val _meta: PassthroughObject? = null
+}
+
+/* Cancellation */
+/**
+ * This notification can be sent by either side to indicate that it is cancelling a previously-issued request.
+ *
+ * The request SHOULD still be in-flight, but due to communication latency, it is always possible that this notification MAY arrive after the request has already finished.
+ *
+ * This notification indicates that the result will be unused, so any associated processing SHOULD cease.
+ *
+ * A client MUST NOT attempt to cancel its `initialize` request.
+ */
+abstract class CancelledNotificationSchema : NotificationSchema {
+    final override val method: String = "notifications/cancelled"
+    abstract override val params: Params
+
+    interface Params : BaseNotificationParamsSchema {
+        /**
+         * The ID of the request to cancel.
+         *
+         * This MUST correspond to the ID of a request previously issued in the same direction.
+         */
+        val requestId: RequestIdSchema
+
+        /**
+         * An optional string describing the reason for the cancellation. This MAY be logged or presented to the user.
+         */
+        val reason: String?
+    }
+}
+
+/* Initialization */
+/**
+ * Describes the name and version of an MCP implementation.
+ */
+interface ImplementationSchema : PassthroughObject {
+    val name: String
+    val version: String
+}
+
+/**
+ * Capabilities a client may support. Known capabilities are defined here, in this schema, but this is not a closed set: any client can define its own, additional capabilities.
+ */
+interface ClientCapabilitiesSchema : PassthroughObject {
+    /**
+     * Experimental, non-standard capabilities that the client supports.
+     */
+    val experimental: PassthroughObject?
+    /**
+     * Present if the client supports sampling from an LLM.
+     */
+    val sampling: PassthroughObject?
+    /**
+     * Present if the client supports listing roots.
+     */
+    val roots: Roots?
+
+    interface Roots {
+        /**
+         * Whether the client supports issuing notifications for changes to the roots list.
+         */
+        val listChanged: Boolean?
+    }
+}
+
+/**
+ * This request is sent from the client to the server when it first connects, asking it to begin initialization.
+ */
+abstract class InitializeRequestSchema : RequestSchema {
+    final override val method: String = "initialize"
+    abstract override val params: Params
+
+    interface Params : BaseRequestParamsSchema {
+        /**
+         * The latest version of the Model Context Protocol that the client supports. The client MAY decide to support older versions as well.
+         */
+        val protocolVersion: String
+        val capabilities: ClientCapabilitiesSchema
+        val clientInfo: ImplementationSchema
     }
 }
 
