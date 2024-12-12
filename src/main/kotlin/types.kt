@@ -384,9 +384,8 @@ data class PingRequest(
     override val method: Method = Method.Defined.Ping
 }
 
-/* Progress notifications */
 @Serializable
-sealed interface Progress {
+sealed interface ProgressBase {
     /**
      * The progress thus far. This should increase every time progress is made, even if the total is unknown.
      */
@@ -395,8 +394,22 @@ sealed interface Progress {
     /**
      * Total number of items to process (or total progress required), if known.
      */
-    val total: Double?
+    // todo maybe number?
+    val total: Int?
 }
+/* Progress notifications */
+@Serializable
+open class Progress(
+    /**
+     * The progress thus far. This should increase every time progress is made, even if the total is unknown.
+     */
+    val progress: Int,
+
+    /**
+     * Total number of items to process (or total progress required), if known.
+     */
+    val total: Double?
+)
 
 /**
  * An out-of-band notification used to inform the receiver of a progress update for a long-running request.
@@ -416,7 +429,7 @@ data class ProgressNotification(
         override val _meta: JsonObject?,
         override val progress: Int,
         override val total: Double?,
-    ) : BaseNotificationParams, Progress
+    ) : BaseNotificationParams, ProgressBase
 }
 
 /* Pagination */
