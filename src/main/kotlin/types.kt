@@ -1,3 +1,5 @@
+import UnsubscribeRequestSchema.Params
+
 const val LATEST_PROTOCOL_VERSION = "2024-11-05"
 
 val SUPPORTED_PROTOCOL_VERSIONS = arrayOf(
@@ -61,6 +63,8 @@ interface ResultSchema : PassthroughObject, WithMeta
  */
 typealias RequestId = RequestIdSchema
 typealias RequestIdSchema = Any
+
+typealias JSONRPCMessage = JSONRPCMessageSchema
 
 /**
  * TODO
@@ -510,4 +514,85 @@ abstract class ResourceListChangedNotificationSchema : NotificationSchema {
     final override val method: String = "notifications/resources/list_changed"
 }
 
-typealias JSONRPCMessage = JSONRPCMessageSchema
+/**
+ * Sent from the client to request resources/updated notifications from the server whenever a particular resource changes.
+ */
+abstract class SubscribeRequestSchema : RequestSchema {
+    final override val method: String = "resources/subscribe"
+    abstract override val params: Params
+
+    interface Params : BaseRequestParamsSchema {
+        /**
+         * The URI of the resource to subscribe to. The URI can use any protocol; it is up to the server how to interpret it.
+         */
+        val uri: String
+    }
+}
+
+/**
+ * Sent from the client to request cancellation of resources/updated notifications from the server. This should follow a previous resources/subscribe request.
+ */
+abstract class UnsubscribeRequestSchema : RequestSchema {
+    final override val method: String = "resources/unsubscribe"
+    abstract override val params: Params
+
+    interface Params : BaseRequestParamsSchema {
+        /**
+         * The URI of the resource to unsubscribe from.
+         */
+        val uri: String
+    }
+}
+
+/**
+ * A notification from the server to the client, informing it that a resource has changed and may need to be read again. This should only be sent if the client previously sent a resources/subscribe request.
+ */
+abstract class ResourceUpdatedNotificationSchema : NotificationSchema {
+    final override val method: String = "notifications/resources/updated"
+
+    abstract override val params: Params
+
+    interface Params : BaseNotificationParamsSchema {
+        /**
+         * The URI of the resource that has been updated. This might be a sub-resource of the one that the client actually subscribed to.
+         */
+        val uri: String
+    }
+}
+
+/* Prompts */
+/**
+ * Describes an argument that a prompt can accept.
+ */
+interface PromptArgumentSchema : PassthroughObject {
+    /**
+     * The name of the argument.
+     */
+    val name: String
+    /**
+     * A human-readable description of the argument.
+     */
+    val description: String?
+    /**
+     * Whether this argument must be provided.
+     */
+    val required: Boolean?
+}
+
+/**
+ * A prompt or prompt template that the server offers.
+ */
+interface PromptSchema : PassthroughObject {
+    /**
+     * The name of the prompt or prompt template.
+     */
+    val name: String
+    /**
+     * An optional description of what this prompt provides
+     */
+    val description: String?
+    /**
+     * A list of arguments to use for templating the prompt.
+     */
+    val arguments: Array<PromptArgumentSchema>?
+}
