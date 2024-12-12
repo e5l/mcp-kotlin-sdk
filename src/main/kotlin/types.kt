@@ -133,7 +133,7 @@ abstract class JSONRPCNotification : Notification, JSONRPCMessage {
  * A successful (non-error) response to a request.
  */
 @Serializable
-abstract class JSONRPCResponse : Notification, JSONRPCMessage {
+abstract class JSONRPCResponse : JSONRPCMessage {
     val jsonrpc: String = JSONRPC_VERSION
     abstract val id: RequestId
     abstract val result: RequestResult
@@ -281,7 +281,8 @@ sealed interface ServerResult : RequestResult
 data class InitializeRequest(
     override val method: Method = Method.Defined.Initialize,
     override val params: Params,
-) : ClientRequest {
+    override val id: RequestId,
+) : ClientRequest, JSONRPCRequest() {
     @Serializable
     data class Params(
         /**
@@ -359,7 +360,7 @@ interface InitializeResult : ServerResult {
 /**
  * This notification is sent from the client to the server after initialization has finished.
  */
-abstract class InitializedNotification : ClientNotification {
+abstract class InitializedNotification : ClientNotification, JSONRPCNotification() {
     final override val method: Method = Method.Defined.NotificationsInitialized
 }
 
@@ -367,7 +368,7 @@ abstract class InitializedNotification : ClientNotification {
 /**
  * A ping, issued by either the server or the client, to check that the other party is still alive. The receiver must promptly respond, or else may be disconnected.
  */
-abstract class PingRequest : ClientRequest, ServerRequest, JSONRPCRequest() {
+abstract class PingRequest : ServerRequest, ClientRequest, JSONRPCRequest() {
     final override val method: Method = Method.Defined.Ping
 }
 
@@ -524,7 +525,7 @@ interface ResourceTemplate {
 /**
  * Sent from the client to request a list of resources the server has.
  */
-abstract class ListResourcesRequest : ClientRequest, PaginatedRequest {
+abstract class ListResourcesRequest : ClientRequest, PaginatedRequest, JSONRPCRequest() {
     final override val method: Method = Method.Defined.ResourcesList
 }
 
@@ -538,7 +539,7 @@ interface ListResourcesResult : ServerResult, PaginatedResult {
 /**
  * Sent from the client to request a list of resource templates the server has.
  */
-abstract class ListResourceTemplatesRequest : ClientRequest, PaginatedRequest {
+abstract class ListResourceTemplatesRequest : ClientRequest, PaginatedRequest, JSONRPCRequest() {
     final override val method: Method = Method.Defined.ResourcesTemplatesList
 }
 
@@ -575,14 +576,14 @@ interface ReadResourceResult : ServerResult {
 /**
  * An optional notification from the server to the client, informing it that the list of resources it can read from has changed. This may be issued by servers without any previous subscription from the client.
  */
-abstract class ResourceListChangedNotification : ServerNotification {
+abstract class ResourceListChangedNotification : ServerNotification, JSONRPCNotification() {
     final override val method: Method = Method.Defined.NotificationsResourcesListChanged
 }
 
 /**
  * Sent from the client to request resources/updated notifications from the server whenever a particular resource changes.
  */
-abstract class SubscribeRequest : ClientRequest {
+abstract class SubscribeRequest : ClientRequest, JSONRPCRequest() {
     final override val method: Method = Method.Defined.ResourcesSubscribe
     abstract override val params: Params
 
@@ -597,7 +598,7 @@ abstract class SubscribeRequest : ClientRequest {
 /**
  * Sent from the client to request cancellation of resources/updated notifications from the server. This should follow a previous resources/subscribe request.
  */
-abstract class UnsubscribeRequest : ClientRequest {
+abstract class UnsubscribeRequest : ClientRequest, JSONRPCRequest() {
     final override val method: Method = Method.Defined.ResourcesUnsubscribe
     abstract override val params: Params
 
@@ -612,7 +613,7 @@ abstract class UnsubscribeRequest : ClientRequest {
 /**
  * A notification from the server to the client, informing it that a resource has changed and may need to be read again. This should only be sent if the client previously sent a resources/subscribe request.
  */
-abstract class ResourceUpdatedNotification : ServerNotification {
+abstract class ResourceUpdatedNotification : ServerNotification, JSONRPCNotification() {
     final override val method: Method = Method.Defined.NotificationsResourcesUpdated
 
     abstract override val params: Params
@@ -669,7 +670,7 @@ interface Prompt {
 /**
  * Sent from the client to request a list of prompts and prompt templates the server has.
  */
-abstract class ListPromptsRequest : ClientRequest, PaginatedRequest {
+abstract class ListPromptsRequest : ClientRequest, PaginatedRequest, JSONRPCRequest() {
     final override val method: Method = Method.Defined.PromptsList
 }
 
@@ -683,7 +684,7 @@ interface ListPromptsResult : ServerResult, PaginatedResult {
 /**
  * Used by the client to get a prompt provided by the server.
  */
-abstract class GetPromptRequest : ClientRequest {
+abstract class GetPromptRequest : ClientRequest, JSONRPCRequest() {
     final override val method: Method = Method.Defined.PromptsGet
     abstract override val params: Params
 
@@ -775,7 +776,7 @@ interface GetPromptResult : ServerResult {
 /**
  * An optional notification from the server to the client, informing it that the list of prompts it offers has changed. This may be issued by servers without any previous subscription from the client.
  */
-abstract class PromptListChangedNotification : ServerNotification {
+abstract class PromptListChangedNotification : ServerNotification, JSONRPCNotification() {
     final override val method: Method = Method.Defined.NotificationsPromptsListChanged
 }
 
@@ -808,7 +809,7 @@ interface Tool {
 /**
  * Sent from the client to request a list of tools the server has.
  */
-abstract class ListToolsRequest : ClientRequest, PaginatedRequest {
+abstract class ListToolsRequest : ClientRequest, PaginatedRequest, JSONRPCRequest() {
     final override val method: Method = Method.Defined.ToolsList
 }
 
@@ -837,7 +838,7 @@ interface CompatibilityCallToolResult : CallToolResult {
 /**
  * Used by the client to invoke a tool provided by the server.
  */
-abstract class CallToolRequest : ClientRequest {
+abstract class CallToolRequest : ClientRequest, JSONRPCRequest() {
     final override val method: Method = Method.Defined.ToolsCall
     abstract override val params: Params
 
@@ -850,7 +851,7 @@ abstract class CallToolRequest : ClientRequest {
 /**
  * An optional notification from the server to the client, informing it that the list of tools it offers has changed. This may be issued by servers without any previous subscription from the client.
  */
-abstract class ToolListChangedNotification : ServerNotification {
+abstract class ToolListChangedNotification : ServerNotification, JSONRPCNotification() {
     final override val method: Method = Method.Defined.NotificationsToolsListChanged
 }
 
@@ -874,7 +875,7 @@ enum class LoggingLevel {
 /**
  * A request from the client to the server, to enable or adjust logging.
  */
-abstract class SetLevelRequest : ClientRequest {
+abstract class SetLevelRequest : ClientRequest, JSONRPCRequest() {
     final override val method: Method = Method.Defined.LoggingSetLevel
     abstract override val params: Params
 
@@ -889,7 +890,7 @@ abstract class SetLevelRequest : ClientRequest {
 /**
  * Notification of a log message passed from server to client. If no logging/setLevel request has been sent from the client, the server MAY decide which messages to send automatically.
  */
-abstract class LoggingMessageNotification : ServerNotification {
+abstract class LoggingMessageNotification : ServerNotification, JSONRPCNotification() {
     final override val method: Method = Method.Defined.NotificationsMessage
     abstract override val params: Params
 
@@ -964,7 +965,7 @@ interface SamplingMessage {
 /**
  * A request from the server to sample an LLM via the client. The client has full discretion over which model to select. The client should also inform the user before beginning sampling, to allow them to inspect the request (human in the loop) and decide whether to approve it.
  */
-abstract class CreateMessageRequest : ServerRequest {
+abstract class CreateMessageRequest : ServerRequest, JSONRPCRequest() {
     final override val method: Method = Method.Defined.SamplingCreateMessage
     abstract override val params: Params
 
@@ -1070,7 +1071,7 @@ abstract class PromptReference : Reference {
 /**
  * A request from the client to the server, to ask for completion options.
  */
-abstract class CompleteRequest : ClientRequest {
+abstract class CompleteRequest : ClientRequest, JSONRPCRequest() {
     final override val method: Method = Method.Defined.CompletionComplete
     abstract override val params: Params
 
@@ -1143,7 +1144,7 @@ interface Root {
 /**
  * Sent from the server to request a list of root URIs from the client.
  */
-abstract class ListRootsRequest : ServerRequest {
+abstract class ListRootsRequest : ServerRequest, JSONRPCRequest() {
     final override val method: Method = Method.Defined.RootsList
 }
 
@@ -1157,7 +1158,7 @@ interface ListRootsResult : ClientResult {
 /**
  * A notification from the client to the server, informing it that the list of roots has changed.
  */
-abstract class RootsListChangedNotification : ClientNotification {
+abstract class RootsListChangedNotification : ClientNotification, JSONRPCNotification() {
     final override val method: Method = Method.Defined.NotificationsRootsListChanged
 }
 
