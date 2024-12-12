@@ -760,12 +760,12 @@ data class GetPromptRequest(
     ) : BaseRequestParams
 }
 
-@Serializable
+@Serializable(with = PromptMessageContentPolymorphicSerializer::class)
 sealed interface PromptMessageContent {
     val type: String
 }
 
-@Serializable
+@Serializable(with = PromptMessageContentTextOrImagePolymorphicSerializer::class)
 sealed interface PromptMessageContentTextOrImage : PromptMessageContent
 
 /**
@@ -778,7 +778,11 @@ data class TextContent(
      */
     val text: String,
 ) : PromptMessageContentTextOrImage {
-    override val type: String = "text"
+    override val type: String = TYPE
+
+    companion object {
+        const val TYPE = "text"
+    }
 }
 
 /**
@@ -796,8 +800,20 @@ data class ImageContent(
      */
     val mimeType: String,
 ) : PromptMessageContentTextOrImage {
-    override val type: String = "image"
+    override val type: String = TYPE
+
+    companion object {
+        const val TYPE = "image"
+    }
 }
+
+/**
+ * An image provided to or from an LLM.
+ */
+@Serializable
+data class UnknownContent(
+    override val type: String,
+) : PromptMessageContentTextOrImage
 
 /**
  * The contents of a resource, embedded into a prompt or tool call result.
@@ -806,7 +822,11 @@ data class ImageContent(
 data class EmbeddedResource(
     val resource: ResourceContents,
 ) : PromptMessageContent {
-    override val type: String = "resource"
+    override val type: String = TYPE
+
+    companion object {
+        const val TYPE = "resource"
+    }
 }
 
 @Suppress("EnumEntryName")

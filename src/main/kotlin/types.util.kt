@@ -72,3 +72,26 @@ internal object ReferencePolymorphicSerializer : JsonContentPolymorphicSerialize
         }
     }
 }
+
+internal object PromptMessageContentPolymorphicSerializer :
+    JsonContentPolymorphicSerializer<PromptMessageContent>(PromptMessageContent::class) {
+    override fun selectDeserializer(element: JsonElement): DeserializationStrategy<PromptMessageContent> {
+        return when (element.jsonObject.getValue("type").jsonPrimitive.content) {
+            ImageContent.TYPE -> ImageContent.serializer()
+            TextContent.TYPE -> TextContent.serializer()
+            EmbeddedResource.TYPE -> EmbeddedResource.serializer()
+            else -> UnknownContent.serializer()
+        }
+    }
+}
+
+internal object PromptMessageContentTextOrImagePolymorphicSerializer :
+    JsonContentPolymorphicSerializer<PromptMessageContentTextOrImage>(PromptMessageContentTextOrImage::class) {
+    override fun selectDeserializer(element: JsonElement): DeserializationStrategy<PromptMessageContentTextOrImage> {
+        return when (element.jsonObject.getValue("type").jsonPrimitive.content) {
+            ImageContent.TYPE -> ImageContent.serializer()
+            TextContent.TYPE -> TextContent.serializer()
+            else -> UnknownContent.serializer()
+        }
+    }
+}
