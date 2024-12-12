@@ -93,7 +93,8 @@ class StdioClientTransport(
         val p = try {
             pb.start()
         } catch (e: Throwable) {
-            throw RuntimeException("Failed to start process", e)
+            deferred.completeExceptionally(RuntimeException("Failed to start process", e))
+            return deferred
         }
         process = p
 
@@ -103,25 +104,23 @@ class StdioClientTransport(
             return deferred
         }
 
-        val inputStream = p.inputStream
-        val outputStream = p.outputStream
+        val inputStream = p.inputStream.bufferedReader(UTF_8)
+        val outputStream = p.outputStream.bufferedWriter(UTF_8)
 
         job = scope.launch {
             val readJob = launch {
-                val buffer = ByteArray(8192)
                 try {
                     while (isActive) {
-                        val bytesRead = inputStream.read(buffer)
-                        if (bytesRead == -1) break
-                        if (bytesRead > 0) {
-                            readBuffer.append(buffer.copyOf(bytesRead))
-                            processReadBuffer()
-                        }
+                        val line = inputStream.readLine() ?: break
+                        readBuffer.append(line.toByteArray())
+                        processReadBuffer()
                     }
                 } catch (e: Throwable) {
                     if (isActive) {
                         onerror?.invoke(e)
                     }
+                } finally {
+                    inputStream.close()
                 }
             }
 
@@ -129,8 +128,7 @@ class StdioClientTransport(
                 try {
                     sendChannel.consumeEach { message ->
                         val json = serializeMessage(message)
-                        val bytes = json.toByteArray(UTF_8)
-                        outputStream.write(bytes)
+                        outputStream.write(json)
                         outputStream.flush()
                     }
                 } catch (e: Throwable) {
