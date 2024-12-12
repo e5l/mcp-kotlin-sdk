@@ -59,6 +59,7 @@ interface ResultSchema : PassthroughObject, WithMeta
 /**
  * A uniquely identifying ID for a request in JSON-RPC.
  */
+typealias RequestId = RequestIdSchema
 typealias RequestIdSchema = Any
 
 /**
@@ -78,6 +79,8 @@ abstract class JSONRPCRequestSchema : RequestSchema, JSONRPCMessageSchema {
 /**
  * A notification which does not expect a response.
  */
+typealias JSONRPCNotification = JSONRPCNotificationSchema
+
 abstract class JSONRPCNotificationSchema : NotificationSchema, JSONRPCMessageSchema {
     val jsonrpc: String = JSONRPC_VERSION
 }
@@ -85,6 +88,7 @@ abstract class JSONRPCNotificationSchema : NotificationSchema, JSONRPCMessageSch
 /**
  * A successful (non-error) response to a request.
  */
+typealias JSONRPCResponse = JSONRPCResponseSchema
 abstract class JSONRPCResponseSchema : NotificationSchema, JSONRPCMessageSchema {
     val jsonrpc: String = JSONRPC_VERSION
     abstract val id: RequestIdSchema
