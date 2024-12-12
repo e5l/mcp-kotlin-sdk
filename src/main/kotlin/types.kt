@@ -50,13 +50,12 @@ interface RequestSchema {
 
 interface BaseNotificationParamsSchema : PassthroughObject, WithMeta
 
-
+typealias Notification = NotificationSchema
 interface NotificationSchema : PassthroughObject {
     val method: String
     val params: BaseNotificationParamsSchema?
 }
 
-typealias Result = ResultSchema
 interface ResultSchema : PassthroughObject, WithMeta
 
 /**
@@ -72,6 +71,7 @@ sealed interface JSONRPCMessageSchema
 /**
  * A request that expects a response.
  */
+typealias JSONRPCRequest = JSONRPCRequestSchema
 abstract class JSONRPCRequestSchema : RequestSchema, JSONRPCMessageSchema {
     val jsonrpc: String = JSONRPC_VERSION
     abstract val id: RequestIdSchema
