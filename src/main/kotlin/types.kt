@@ -5,7 +5,7 @@ val SUPPORTED_PROTOCOL_VERSIONS = arrayOf(
     "2024-10-07",
 )
 
-const val JSONRPC_VERSION = "2.0"
+const val JSONRPC_VERSION: String = "2.0"
 
 // line 15
 /**
@@ -59,6 +59,31 @@ interface ResultSchema : PassthroughObject, WithMeta
  * A uniquely identifying ID for a request in JSON-RPC.
  */
 typealias RequestIdSchema = Any
+
+/**
+ * A request that expects a response.
+ */
+abstract class JSONRPCRequestSchema : RequestSchema {
+    val jsonrpc: String = JSONRPC_VERSION
+    abstract val id: RequestIdSchema
+}
+
+/**
+ * A notification which does not expect a response.
+ */
+abstract class JSONRPCNotificationSchema : NotificationSchema {
+    val jsonrpc: String = JSONRPC_VERSION
+}
+
+/**
+ * A successful (non-error) response to a request.
+ */
+abstract class JSONRPCResponseSchema : NotificationSchema {
+    val jsonrpc: String = JSONRPC_VERSION
+    abstract val id: RequestIdSchema
+    abstract val result: ResultSchema
+}
+
 
 
 typealias JSONRPCMessage = JSONRPCMessageSchema
