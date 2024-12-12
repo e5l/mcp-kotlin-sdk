@@ -1,5 +1,8 @@
 @file:Suppress("unused")
 
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
+
 const val LATEST_PROTOCOL_VERSION = "2024-11-05"
 
 val SUPPORTED_PROTOCOL_VERSIONS = arrayOf(
@@ -13,7 +16,7 @@ const val JSONRPC_VERSION: String = "2.0"
 /**
  * A progress token, used to associate progress notifications with the original request.
  */
-typealias ProgressTokenSchema = Any
+typealias ProgressTokenSchema = String
 
 /**
  * An opaque token used to represent a cursor for pagination.
@@ -21,7 +24,7 @@ typealias ProgressTokenSchema = Any
 typealias CursorSchema = String
 
 interface PassthroughObject {
-    val additionalProperties: Map<String, Any?>
+    val additionalProperties: Map<String, JsonObject?>
 }
 
 interface WithMeta {
@@ -43,7 +46,9 @@ interface BaseRequestParamsSchema : PassthroughObject, WithMeta {
 }
 
 typealias Request = RequestSchema
-interface RequestSchema {
+
+@Serializable
+sealed interface RequestSchema {
     val method: String
     val params: BaseRequestParamsSchema?
 }
@@ -51,6 +56,7 @@ interface RequestSchema {
 interface BaseNotificationParamsSchema : PassthroughObject, WithMeta
 
 typealias Notification = NotificationSchema
+
 interface NotificationSchema : PassthroughObject {
     val method: String
     val params: BaseNotificationParamsSchema?
@@ -75,6 +81,7 @@ sealed interface JSONRPCMessageSchema
  * A request that expects a response.
  */
 typealias JSONRPCRequest = JSONRPCRequestSchema
+
 abstract class JSONRPCRequestSchema : RequestSchema, JSONRPCMessageSchema {
     val jsonrpc: String = JSONRPC_VERSION
     abstract val id: RequestIdSchema
@@ -85,6 +92,7 @@ abstract class JSONRPCRequestSchema : RequestSchema, JSONRPCMessageSchema {
  */
 typealias JSONRPCNotification = JSONRPCNotificationSchema
 
+@Serializable
 abstract class JSONRPCNotificationSchema : NotificationSchema, JSONRPCMessageSchema {
     val jsonrpc: String = JSONRPC_VERSION
 }
@@ -93,6 +101,7 @@ abstract class JSONRPCNotificationSchema : NotificationSchema, JSONRPCMessageSch
  * A successful (non-error) response to a request.
  */
 typealias JSONRPCResponse = JSONRPCResponseSchema
+
 abstract class JSONRPCResponseSchema : NotificationSchema, JSONRPCMessageSchema {
     val jsonrpc: String = JSONRPC_VERSION
     abstract val id: RequestIdSchema
@@ -148,7 +157,7 @@ abstract class JSONRPCErrorSchema : JSONRPCMessageSchema {
  * A response that indicates success but carries no data.
  */
 object EmptyResultSchema : ResultSchema {
-    override val additionalProperties: Map<String, Any?> = emptyMap()
+    override val additionalProperties: Map<String, JsonObject?> = emptyMap()
     override val _meta: PassthroughObject? = null
 }
 
@@ -315,11 +324,13 @@ abstract class PingRequestSchema : RequestSchema {
 }
 
 /* Progress notifications */
-interface ProgressSchema : PassthroughObject {
+@Serializable
+sealed interface ProgressSchema : PassthroughObject {
     /**
      * The progress thus far. This should increase every time progress is made, even if the total is unknown.
      */
     val progress: Int
+
     /**
      * Total number of items to process (or total progress required), if known.
      */
@@ -334,12 +345,18 @@ abstract class ProgressNotificationSchema : NotificationSchema {
     final override val method: String = "notifications/progress"
     abstract override val params: Params
 
-    interface Params : BaseNotificationParamsSchema, ProgressSchema {
-        /**
-         * The progress token which was given in the initial request, used to associate this notification with the request that is proceeding.
-         */
-        val progressToken: ProgressTokenSchema
-    }
+    @Serializable
+
+    /**
+     * The progress token which was given in the initial request, used to associate this notification with the request that is proceeding.
+     */
+    class Params(
+        val progressToken: ProgressTokenSchema,
+        override val additionalProperties: Map<String, JsonObject?>,
+        override val _meta: PassthroughObject?,
+        override val progress: Int,
+        override val total: Int?
+    ) : BaseNotificationParamsSchema, ProgressSchema
 }
 
 /* Pagination */
@@ -372,6 +389,7 @@ sealed interface ResourceContentsSchema : PassthroughObject {
      * The URI of this resource.
      */
     val uri: String
+
     /**
      * The MIME type of this resource, if known.
      */
@@ -474,7 +492,7 @@ interface ListResourcesResultSchema : PaginatedResultSchema {
  * Sent from the client to request a list of resource templates the server has.
  */
 abstract class ListResourceTemplatesRequestSchema : PaginatedRequestSchema {
-    final override val method: String  = "resources/templates/list"
+    final override val method: String = "resources/templates/list"
 }
 
 /**
@@ -569,10 +587,12 @@ interface PromptArgumentSchema : PassthroughObject {
      * The name of the argument.
      */
     val name: String
+
     /**
      * A human-readable description of the argument.
      */
     val description: String?
+
     /**
      * Whether this argument must be provided.
      */
@@ -587,10 +607,12 @@ interface PromptSchema : PassthroughObject {
      * The name of the prompt or prompt template.
      */
     val name: String
+
     /**
      * An optional description of what this prompt provides
      */
     val description: String?
+
     /**
      * A list of arguments to use for templating the prompt.
      */
@@ -623,6 +645,7 @@ abstract class GetPromptRequestSchema : RequestSchema {
          * The name of the prompt or prompt template.
          */
         val name: String
+
         /**
          * Arguments to use for templating the prompt.
          */
@@ -641,6 +664,7 @@ sealed interface PromptMessageContentTextOrImage : PromptMessageContent
  */
 abstract class TextContentSchema : PromptMessageContentTextOrImage, PassthroughObject {
     final override val type: String = "text"
+
     /**
      * The text content of the message.
      */
@@ -652,12 +676,14 @@ abstract class TextContentSchema : PromptMessageContentTextOrImage, PassthroughO
  */
 abstract class ImageContentSchema : PromptMessageContentTextOrImage, PassthroughObject {
     final override val type: String = "image"
+
     /**
      * The base64-encoded image data.
      *
      * TODO check that it is base64
      */
     abstract val data: String
+
     /**
      * The MIME type of the image. Different providers may support different image types.
      *
@@ -715,10 +741,12 @@ interface ToolSchema : PassthroughObject {
      * The name of the tool.
      */
     val name: String
+
     /**
      * A human-readable description of the tool.
      */
     val description: String?
+
     /**
      * A JSON Schema object defining the expected parameters for the tool.
      */
@@ -763,7 +791,7 @@ interface CompatibilityCallToolResultSchema : CallToolResultSchema {
  * Used by the client to invoke a tool provided by the server.
  */
 abstract class CallToolRequestSchema : RequestSchema {
-    final override val method: String  = "tools/call"
+    final override val method: String = "tools/call"
     abstract override val params: Params
 
     interface Params : BaseRequestParamsSchema {
