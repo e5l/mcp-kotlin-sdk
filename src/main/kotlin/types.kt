@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 import UnsubscribeRequestSchema.Params
 
 const val LATEST_PROTOCOL_VERSION = "2024-11-05"
@@ -595,4 +597,48 @@ interface PromptSchema : PassthroughObject {
      * A list of arguments to use for templating the prompt.
      */
     val arguments: Array<PromptArgumentSchema>?
+}
+
+/**
+ * Sent from the client to request a list of prompts and prompt templates the server has.
+ */
+abstract class ListPromptsRequestSchema : PaginatedRequestSchema {
+    final override val method: String = "prompts/list"
+}
+
+/**
+ * The server's response to a prompts/list request from the client.
+ */
+interface ListPromptsResultSchema : PaginatedResultSchema {
+    val prompts: Array<PromptSchema>
+}
+
+/**
+ * Used by the client to get a prompt provided by the server.
+ */
+abstract class GetPromptRequestSchema : RequestSchema {
+    final override val method: String = "prompts/get"
+    abstract override val params: Params
+
+    interface Params : BaseRequestParamsSchema {
+        /**
+         * The name of the prompt or prompt template.
+         */
+        val name: String
+        /**
+         * Arguments to use for templating the prompt.
+         */
+        val arguments: Map<String, String>?
+    }
+}
+
+/**
+ * Text provided to or from an LLM.
+ */
+abstract class TextContentSchema : PassthroughObject {
+    val type: String = "text"
+    /**
+     * The text content of the message.
+     */
+    abstract val text: String
 }
