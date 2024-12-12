@@ -121,7 +121,7 @@ val COMPLETED = CompletableDeferred(Unit).also { it.complete(Unit) }
 abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification, SendResultT : ResultSchema>(
     @PublishedApi internal val _options: ProtocolOptions?
 ) {
-    @PublishedApi
+//    @PublishedApi
     internal var _transport: Transport? = null
 
     @PublishedApi
