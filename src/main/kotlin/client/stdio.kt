@@ -10,15 +10,34 @@ import shared.serializeMessage
 import kotlin.coroutines.CoroutineContext
 import kotlin.text.Charsets.UTF_8
 
+enum class StdioOption {
+    INHERIT,
+    PIPE,
+    IGNORE
+}
+
+
+/**
+ * Represents the parameters required to start a standard input/output server process.
+ *
+ * @property command The executable to run to start the server.
+ * @property args Command line arguments to pass to the executable.
+ * @property env The environment to use when spawning the process.
+ * If not specified, the result, of [getDefaultEnvironment] will be used.
+ */
 data class StdioServerParameters(
     val command: String,
     val args: List<String> = emptyList(),
     val env: Map<String, String>? = null,
-    val stderr: Any? = "inherit" // TODO
+    val stderr: StdioOption? = StdioOption.INHERIT
 )
 
+/**
+ * Returns a default environment object including only environment variables deemed safe to inherit.
+ */
 private fun getDefaultEnvironment(): Map<String, String> {
-    val safeKeys = if (System.getProperty("os.name").lowercase().contains("win")) {
+    val defaultEnvKeys = if (System.getProperty("os.name").lowercase().contains("win")) {
+        // Environment variables to inherit by default if an environment is not explicitly given.
         listOf(
             "APPDATA",
             "HOMEDRIVE",
@@ -37,7 +56,7 @@ private fun getDefaultEnvironment(): Map<String, String> {
     }
 
     val env = mutableMapOf<String, String>()
-    for (key in safeKeys) {
+    for (key in defaultEnvKeys) {
         val value = System.getenv(key) ?: continue
         if (!value.startsWith("()")) {
             env[key] = value
@@ -46,22 +65,25 @@ private fun getDefaultEnvironment(): Map<String, String> {
     return env
 }
 
-
+/**
+ * Client transport for stdio:
+ * this will connect to a server by spawning a process and communicating with it over stdin/stdout.
+ */
 class StdioClientTransport(
     private val serverParams: StdioServerParameters,
 ) : Transport {
     private val jsonRpcContext: CoroutineContext = Dispatchers.IO
-    override var onClose: (() -> Unit)? = null
-    override var onError: ((Throwable) -> Unit)? = null
-    override var onMessage: (CoroutineScope.(JSONRPCMessage) -> Unit)? = null
 
     private var process: Process? = null
     private val scope = CoroutineScope(jsonRpcContext + SupervisorJob())
     private var job: Job? = null
     private var started = false
     private val sendChannel = Channel<JSONRPCMessage>(Channel.UNLIMITED)
-
     private val readBuffer = ReadBuffer()
+
+    override var onClose: (() -> Unit)? = null
+    override var onError: ((Throwable) -> Unit)? = null
+    override var onMessage: (CoroutineScope.(JSONRPCMessage) -> Unit)? = null
 
     override fun start(): Deferred<Unit> {
         val deferred = CompletableDeferred<Unit>()
@@ -78,8 +100,10 @@ class StdioClientTransport(
         environment.clear()
         environment.putAll(envMap)
 
-        if (serverParams.stderr == "inherit") {
-            pb.redirectError(ProcessBuilder.Redirect.INHERIT)
+        when (serverParams.stderr) {
+            StdioOption.INHERIT -> pb.redirectError(ProcessBuilder.Redirect.INHERIT)
+            StdioOption.PIPE -> pb.redirectError(ProcessBuilder.Redirect.PIPE)
+            StdioOption.IGNORE, null -> pb.redirectError(ProcessBuilder.Redirect.DISCARD)
         }
 
         val p = try {
