@@ -51,9 +51,9 @@ class StdioClientTransport(
     private val serverParams: StdioServerParameters,
 ) : Transport {
     private val jsonRpcContext: CoroutineContext = Dispatchers.IO
-    override var onclose: (() -> Unit)? = null
-    override var onerror: ((Throwable) -> Unit)? = null
-    override var onmessage: (CoroutineScope.(JSONRPCMessage) -> Unit)? = null
+    override var onClose: (() -> Unit)? = null
+    override var onError: ((Throwable) -> Unit)? = null
+    override var onMessage: (CoroutineScope.(JSONRPCMessage) -> Unit)? = null
 
     private var process: Process? = null
     private val scope = CoroutineScope(jsonRpcContext + SupervisorJob())
@@ -109,7 +109,7 @@ class StdioClientTransport(
                     }
                 } catch (e: Throwable) {
                     if (isActive) {
-                        onerror?.invoke(e)
+                        onError?.invoke(e)
                     }
                 } finally {
                     inputStream.close()
@@ -124,7 +124,7 @@ class StdioClientTransport(
                         outputStream.flush()
                     }
                 } catch (e: Throwable) {
-                    if (isActive) onerror?.invoke(e)
+                    if (isActive) onError?.invoke(e)
                 } finally {
                     outputStream.close()
                 }
@@ -132,7 +132,7 @@ class StdioClientTransport(
 
             val exitJob = launch {
                 p.waitFor()
-                onclose?.invoke()
+                onClose?.invoke()
             }
 
             deferred.complete(Unit)
@@ -171,7 +171,7 @@ class StdioClientTransport(
                 readBuffer.clear()
                 sendChannel.close()
                 job?.cancelAndJoin()
-                onclose?.invoke()
+                onClose?.invoke()
                 deferred.complete(Unit)
             } catch (e: Throwable) {
                 deferred.completeExceptionally(e)
@@ -184,9 +184,9 @@ class StdioClientTransport(
         while (true) {
             val msg = readBuffer.readMessage() ?: break
             try {
-                onmessage?.invoke(scope, msg)
+                onMessage?.invoke(scope, msg)
             } catch (e: Throwable) {
-                onerror?.invoke(e)
+                onError?.invoke(e)
             }
         }
     }

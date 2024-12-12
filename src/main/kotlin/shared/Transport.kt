@@ -33,7 +33,7 @@ interface Transport {
      *
      * This should be invoked when close() is called as well.
      */
-    var onclose: (() -> Unit)?
+    var onClose: (() -> Unit)?
 
     /**
      * Callback for when an error occurs.
@@ -41,10 +41,10 @@ interface Transport {
      * Note that errors are not necessarily fatal; they are used for reporting any kind of
      * exceptional condition out of band.
      */
-    var onerror: ((Throwable) -> Unit)?
+    var onError: ((Throwable) -> Unit)?
 
     /**
      * Callback for when a message (request or response) is received over the connection.
      */
-    var onmessage: (CoroutineScope.(JSONRPCMessage) -> Unit)?
+    var onMessage: (CoroutineScope.(JSONRPCMessage) -> Unit)?
 }
