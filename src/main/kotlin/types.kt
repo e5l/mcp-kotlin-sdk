@@ -141,18 +141,27 @@ abstract class JSONRPCResponse : Notification, JSONRPCMessage {
 /**
  * An incomplete set of error codes that may appear in JSON-RPC responses.
  */
-enum class ErrorCode(val code: Int) {
-    // SDK error codes
-    ConnectionClosed(-1),
-    RequestTimeout(-2),
+@Serializable(with = ErrorCodeSerializer::class)
+sealed interface ErrorCode {
+    val code: Int
 
-    // Standard JSON-RPC error codes
-    ParseError(-32700),
-    InvalidRequest(-32600),
-    MethodNotFound(-32601),
-    InvalidParams(-32602),
-    InternalError(-32603),
-    ;
+    @Serializable
+    enum class Defined(override val code: Int) : ErrorCode {
+        // SDK error codes
+        ConnectionClosed(-1),
+        RequestTimeout(-2),
+
+        // Standard JSON-RPC error codes
+        ParseError(-32700),
+        InvalidRequest(-32600),
+        MethodNotFound(-32601),
+        InvalidParams(-32602),
+        InternalError(-32603),
+        ;
+    }
+
+    @Serializable
+    data class Unknown(override val code: Int) : ErrorCode
 }
 
 /**
@@ -167,7 +176,7 @@ class JSONRPCError(
 
     @Serializable
     class Error(
-        val code: Int,
+        val code: ErrorCode,
         val message: String,
         val data: JsonObject?,
     )
