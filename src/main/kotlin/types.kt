@@ -25,6 +25,7 @@ typealias ProgressToken = String
  */
 typealias Cursor = String
 
+// TODO serializer??
 @Serializable
 sealed interface PassthroughObject {
     val additionalProperties: Map<String, JsonObject?>
@@ -35,6 +36,7 @@ sealed interface WithMeta {
     /**
      * This result property is reserved by the protocol to allow clients and servers to attach additional metadata to their responses.
      */
+    @Suppress("PropertyName")
     val _meta: PassthroughObject?
 }
 
@@ -56,6 +58,7 @@ sealed interface BaseRequestParams : PassthroughObject, WithMeta {
 sealed interface Method {
     val value: String
 
+    @Serializable
     enum class Defined(override val value: String) : Method {
         Initialize("initialize"),
         Ping("ping"),
@@ -84,6 +87,7 @@ sealed interface Method {
         ;
     }
 
+    @Serializable
     data class Unknown(override val value: String) : Method
 }
 
@@ -93,9 +97,11 @@ sealed interface Request {
     val params: BaseRequestParams?
 }
 
-interface BaseNotificationParams : PassthroughObject, WithMeta
+@Serializable
+sealed interface BaseNotificationParams : PassthroughObject, WithMeta
 
-interface Notification : PassthroughObject {
+@Serializable
+sealed interface Notification : PassthroughObject {
     val method: Method
     val params: BaseNotificationParams?
 }
@@ -111,6 +117,7 @@ typealias RequestId = String
 /**
  * TODO
  */
+@Serializable
 sealed interface JSONRPCMessage
 
 /**
@@ -132,6 +139,7 @@ abstract class JSONRPCNotification : Notification, JSONRPCMessage {
 /**
  * A successful (non-error) response to a request.
  */
+@Serializable
 abstract class JSONRPCResponse : Notification, JSONRPCMessage {
     val jsonrpc: String = JSONRPC_VERSION
     abstract val id: RequestId
@@ -186,6 +194,7 @@ class JSONRPCError(
 /**
  * A response that indicates success but carries no data.
  */
+@Serializable
 object EmptyResult : ClientResult, ServerResult {
     override val additionalProperties: Map<String, JsonObject?> = emptyMap()
     override val _meta: PassthroughObject? = null
@@ -201,33 +210,39 @@ object EmptyResult : ClientResult, ServerResult {
  *
  * A client MUST NOT attempt to cancel its `initialize` request.
  */
-abstract class CancelledNotification : ClientNotification, ServerNotification {
-    final override val method: Method = Method.Defined.NotificationsCancelled
-    abstract override val params: Params
+data class CancelledNotification(
+    override val params: Params,
+    override val additionalProperties: Map<String, JsonObject?> = emptyMap(),
+) : ClientNotification, ServerNotification {
+    override val method: Method = Method.Defined.NotificationsCancelled
 
-    interface Params : BaseNotificationParams {
+    @Serializable
+    data class Params(
         /**
          * The ID of the request to cancel.
          *
          * This MUST correspond to the ID of a request previously issued in the same direction.
          */
-        val requestId: RequestId
-
+        val requestId: RequestId,
         /**
          * An optional string describing the reason for the cancellation. This MAY be logged or presented to the user.
          */
-        val reason: String?
-    }
+        val reason: String?,
+        override val _meta: PassthroughObject? = null,
+        override val additionalProperties: Map<String, JsonObject?> = emptyMap(),
+    ) : BaseNotificationParams
 }
 
 /* Initialization */
 /**
  * Describes the name and version of an MCP implementation.
  */
-interface Implementation : PassthroughObject {
-    val name: String
-    val version: String
-}
+@Serializable
+data class Implementation(
+    val name: String,
+    val version: String,
+    override val additionalProperties: Map<String, JsonObject?> = emptyMap(),
+) : PassthroughObject
 
 /**
  * Capabilities a client may support. Known capabilities are defined here, in this , but this is not a closed set: any client can define its own, additional capabilities.
@@ -822,7 +837,7 @@ interface CallToolResult : ServerResult {
  * CallToolResult extended with backwards compatibility to protocol version 2024-10-07.
  */
 interface CompatibilityCallToolResult : CallToolResult {
-    val toolResult: Any?
+    val toolResult: JsonObject?
 }
 
 /**
@@ -834,7 +849,7 @@ abstract class CallToolRequest : ClientRequest {
 
     interface Params : BaseRequestParams {
         val name: String
-        val arguments: Map<String, Any?>?
+        val arguments: Map<String, JsonObject?>?
     }
 }
 
@@ -898,7 +913,7 @@ abstract class LoggingMessageNotification : ServerNotification {
         /**
          * The data to be logged, such as a string message or an object. Any JSON serializable type is allowed here.
          */
-        val data: Any?
+        val data: JsonObject?
     }
 }
 
@@ -1153,6 +1168,6 @@ abstract class RootsListChangedNotification : ClientNotification {
 }
 
 @Suppress("CanBeParameter")
-class McpError(val code: Int, message: String, val data: Any?) : Exception() {
+class McpError(val code: Int, message: String, val data: JsonObject?) : Exception() {
     override val message: String = "MCP error ${code}: $message"
 }
