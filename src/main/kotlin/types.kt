@@ -61,9 +61,14 @@ interface ResultSchema : PassthroughObject, WithMeta
 typealias RequestIdSchema = Any
 
 /**
+ * TODO
+ */
+sealed interface JSONRPCMessageSchema
+
+/**
  * A request that expects a response.
  */
-abstract class JSONRPCRequestSchema : RequestSchema {
+abstract class JSONRPCRequestSchema : RequestSchema, JSONRPCMessageSchema {
     val jsonrpc: String = JSONRPC_VERSION
     abstract val id: RequestIdSchema
 }
@@ -71,24 +76,61 @@ abstract class JSONRPCRequestSchema : RequestSchema {
 /**
  * A notification which does not expect a response.
  */
-abstract class JSONRPCNotificationSchema : NotificationSchema {
+abstract class JSONRPCNotificationSchema : NotificationSchema, JSONRPCMessageSchema {
     val jsonrpc: String = JSONRPC_VERSION
 }
 
 /**
  * A successful (non-error) response to a request.
  */
-abstract class JSONRPCResponseSchema : NotificationSchema {
+abstract class JSONRPCResponseSchema : NotificationSchema, JSONRPCMessageSchema {
     val jsonrpc: String = JSONRPC_VERSION
     abstract val id: RequestIdSchema
     abstract val result: ResultSchema
 }
 
+/**
+ * An incomplete set of error codes that may appear in JSON-RPC responses.
+ */
+enum class ErrorCode(val code: Int) {
+    // SDK error codes
+    ConnectionClosed(-1),
+    RequestTimeout(-2),
 
-
-typealias JSONRPCMessage = JSONRPCMessageSchema
+    // Standard JSON-RPC error codes
+    ParseError(-32700),
+    InvalidRequest(-32600),
+    MethodNotFound(-32601),
+    InvalidParams(-32602),
+    InternalError(-32603),
+    ;
+}
 
 /**
- * TODO
+ * A response to a request that indicates an error occurred.
  */
-sealed interface JSONRPCMessageSchema
+abstract class JSONRPCErrorSchema : JSONRPCMessageSchema {
+    val jsonrpc: String = JSONRPC_VERSION
+    abstract val id: RequestIdSchema
+
+    abstract val error: Error
+
+    interface Error {
+        /**
+         * The error type that occurred.
+         */
+        val code: Int
+
+        /**
+         * A short description of the error. The message SHOULD be limited to a concise single sentence.
+         */
+        val message: String
+
+        /**
+         * Additional information about the error. The value of this member is defined by the sender (e.g. detailed error information, nested errors etc.).
+         */
+        val data: Any?
+    }
+}
+
+typealias JSONRPCMessage = JSONRPCMessageSchema
