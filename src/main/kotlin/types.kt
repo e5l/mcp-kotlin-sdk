@@ -204,7 +204,7 @@ object EmptyResult : ClientResult, ServerResult {
  */
 data class CancelledNotification(
     override val params: Params,
-) : ClientNotification, ServerNotification {
+) : ClientNotification, ServerNotification, JSONRPCNotification() {
     override val method: Method = Method.Defined.NotificationsCancelled
 
     @Serializable
@@ -367,7 +367,7 @@ abstract class InitializedNotification : ClientNotification {
 /**
  * A ping, issued by either the server or the client, to check that the other party is still alive. The receiver must promptly respond, or else may be disconnected.
  */
-abstract class PingRequest : ClientRequest, ServerRequest {
+abstract class PingRequest : ClientRequest, ServerRequest, JSONRPCRequest() {
     final override val method: Method = Method.Defined.Ping
 }
 
@@ -389,7 +389,7 @@ sealed interface Progress {
 /**
  * An out-of-band notification used to inform the receiver of a progress update for a long-running request.
  */
-abstract class ProgressNotification : ClientNotification, ServerNotification {
+abstract class ProgressNotification : ClientNotification, ServerNotification, JSONRPCNotification() {
     final override val method: Method = Method.Defined.NotificationsProgress
     abstract override val params: Params
 
@@ -1162,6 +1162,6 @@ abstract class RootsListChangedNotification : ClientNotification {
 }
 
 @Suppress("CanBeParameter")
-class McpError(val code: Int, message: String, val data: JsonObject?) : Exception() {
+class McpError(val code: Int, message: String, val data: JsonObject? = null) : Exception() {
     override val message: String = "MCP error ${code}: $message"
 }
