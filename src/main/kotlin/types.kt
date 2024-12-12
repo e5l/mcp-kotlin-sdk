@@ -1,4 +1,4 @@
-@file:Suppress("unused")
+@file:Suppress("unused", "EnumEntryName")
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
@@ -700,6 +700,11 @@ abstract class EmbeddedResourceSchema : PromptMessageContent, PassthroughObject 
     abstract val resource: ResourceContentsSchema
 }
 
+@Suppress("EnumEntryName")
+enum class Role {
+    user, assistant,
+}
+
 /**
  * Describes a message returned as part of a prompt.
  */
@@ -707,11 +712,6 @@ interface PromptMessageSchema : PassthroughObject {
     val role: Role
 
     val content: PromptMessageContent
-
-    @Suppress("EnumEntryName")
-    enum class Role {
-        user, assistant,
-    }
 }
 
 /**
@@ -805,4 +805,211 @@ abstract class CallToolRequestSchema : RequestSchema {
  */
 abstract class ToolListChangedNotificationSchema : NotificationSchema {
     final override val method: String = "notifications/tools/list_changed"
+}
+
+/* Logging */
+/**
+ * The severity of a log message.
+ */
+@Suppress("EnumEntryName")
+enum class LoggingLevelSchema {
+    debug,
+    info,
+    notice,
+    warning,
+    error,
+    critical,
+    alert,
+    emergency,
+    ;
+}
+
+/**
+ * A request from the client to the server, to enable or adjust logging.
+ */
+abstract class SetLevelRequestSchema : RequestSchema {
+    final override val method: String = "logging/setLevel"
+    abstract override val params: Params
+
+    interface Params : BaseRequestParamsSchema {
+        /**
+         * The level of logging that the client wants to receive from the server. The server should send all logs at this level and higher (i.e., more severe) to the client as notifications/logging/message.
+         */
+        val level: LoggingLevelSchema
+    }
+}
+
+/**
+ * Notification of a log message passed from server to client. If no logging/setLevel request has been sent from the client, the server MAY decide which messages to send automatically.
+ */
+abstract class LoggingMessageNotificationSchema : NotificationSchema {
+    final override val method: String = "notifications/message"
+    abstract override val params: Params
+
+    interface Params : BaseNotificationParamsSchema {
+        /**
+         * The severity of this log message.
+         */
+        val level: LoggingLevelSchema
+
+        /**
+         * An optional name of the logger issuing this message.
+         */
+        val logger: String?
+
+        /**
+         * The data to be logged, such as a string message or an object. Any JSON serializable type is allowed here.
+         */
+        val data: Any?
+    }
+}
+
+/* Sampling */
+/**
+ * Hints to use for model selection.
+ */
+interface ModelHintSchema : PassthroughObject {
+    /**
+     * A hint for a model name.
+     */
+    val name: String?
+}
+
+/**
+ * The server's preferences for model selection, requested of the client during sampling.
+ */
+interface ModelPreferencesSchema : PassthroughObject {
+    /**
+     * Optional hints to use for model selection.
+     */
+    val hints: Array<ModelHintSchema>?
+
+    /**
+     * How much to prioritize cost when selecting a model.
+     *
+     * TODO MIN 0, MAX 1
+     */
+    val costPriority: Double?
+
+    /**
+     * How much to prioritize sampling speed (latency) when selecting a model.
+     *
+     * TODO MIN 0, MAX 1
+     */
+    val speedPriority: Double?
+
+    /**
+     * How much to prioritize intelligence and capabilities when selecting a model.
+     *
+     * TODO MIN 0, MAX 1
+     */
+    val intelligencePriority: Double?
+}
+
+/**
+ * Describes a message issued to or received from an LLM API.
+ */
+interface SamplingMessageSchema : PassthroughObject {
+    val role: Role
+    val content: PromptMessageContentTextOrImage
+}
+
+/**
+ * A request from the server to sample an LLM via the client. The client has full discretion over which model to select. The client should also inform the user before beginning sampling, to allow them to inspect the request (human in the loop) and decide whether to approve it.
+ */
+abstract class CreateMessageRequestSchema : RequestSchema {
+    final override val method: String = "sampling/createMessage"
+    abstract override val params: Params
+
+    interface Params : BaseRequestParamsSchema {
+        val messages: Array<SamplingMessageSchema>
+
+        /**
+         * An optional system prompt the server wants to use for sampling. The client MAY modify or omit this prompt.
+         */
+        val systemPrompt: String?
+
+        /**
+         * A request to include context from one or more MCP servers (including the caller), to be attached to the prompt. The client MAY ignore this request.
+         */
+        val includeContext: IncludeContext?
+        val temperature: Double?
+
+        /**
+         * The maximum number of tokens to sample, as requested by the server. The client MAY choose to sample fewer tokens than requested.
+         */
+        val maxTokens: Int
+        val stopSequences: Array<String>?
+
+        /**
+         * Optional metadata to pass through to the LLM provider. The format of this metadata is provider-specific.
+         */
+        val metadata: PassthroughObject?
+
+        /**
+         * The server's preferences for which model to select.
+         */
+        val modelPreferences: ModelPreferencesSchema?
+
+        enum class IncludeContext { none, thisServer, allServers }
+    }
+}
+
+/**
+ * The client's response to a sampling/create_message request from the server. The client should inform the user before returning the sampled message, to allow them to inspect the response (human in the loop) and decide whether to allow the server to see it.
+ */
+interface CreateMessageResultSchema : ResultSchema {
+    /**
+     * The name of the model that generated the message.
+     */
+    val model: String
+
+    /**
+     * The reason why sampling stopped.
+     */
+    val stopReason: StopReason?
+    val role: Role
+
+    val content: PromptMessageContentTextOrImage
+
+    sealed interface StopReason {
+        val value: String
+
+        data object EndTurn : StopReason {
+            override val value: String = "endTurn"
+        }
+
+        data object StopSequence : StopReason {
+            override val value: String = "stopSequence"
+        }
+
+        data object MaxTokens : StopReason {
+            override val value: String = "maxTokens"
+        }
+
+        @JvmInline
+        value class Other(override val value: String) : StopReason
+    }
+}
+
+/* Autocomplete */
+/**
+ * A reference to a resource or resource template definition.
+ */
+abstract class ResourceReferenceSchema : PassthroughObject {
+    val type: String = "ref/resource"
+    /**
+     * The URI or URI template of the resource.
+     */
+    abstract val uri: String
+}
+/**
+ * Identifies a prompt.
+ */
+abstract class PromptReferenceSchema : PassthroughObject {
+    val type: String = "ref/prompt"
+    /**
+     * The name of the prompt or prompt template
+     */
+    abstract val name: String
 }
