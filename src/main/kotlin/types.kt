@@ -42,6 +42,7 @@ interface BaseRequestParamsSchema : PassthroughObject, WithMeta {
     }
 }
 
+typealias Request = RequestSchema
 interface RequestSchema {
     val method: String
     val params: BaseRequestParamsSchema?
@@ -55,6 +56,7 @@ interface NotificationSchema : PassthroughObject {
     val params: BaseNotificationParamsSchema?
 }
 
+typealias Result = ResultSchema
 interface ResultSchema : PassthroughObject, WithMeta
 
 /**
