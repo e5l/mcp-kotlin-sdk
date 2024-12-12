@@ -101,7 +101,7 @@ interface Notification : PassthroughObject {
 }
 
 @Serializable
-sealed interface Result : PassthroughObject, WithMeta
+sealed interface RequestResult : PassthroughObject, WithMeta
 
 /**
  * A uniquely identifying ID for a request in JSON-RPC.
@@ -135,7 +135,7 @@ abstract class JSONRPCNotification : Notification, JSONRPCMessage {
 abstract class JSONRPCResponse : Notification, JSONRPCMessage {
     val jsonrpc: String = JSONRPC_VERSION
     abstract val id: RequestId
-    abstract val result: Result
+    abstract val result: RequestResult
 }
 
 /**
@@ -249,11 +249,11 @@ interface ClientCapabilities : PassthroughObject {
 
 sealed interface ClientRequest : Request
 sealed interface ClientNotification : Notification
-sealed interface ClientResult : Result
+sealed interface ClientResult : RequestResult
 
 sealed interface ServerRequest : Request
 sealed interface ServerNotification : Notification
-sealed interface ServerResult : Result
+sealed interface ServerResult : RequestResult
 
 /**
  * This request is sent from the client to the server when it first connects, asking it to begin initialization.
@@ -401,7 +401,7 @@ interface PaginatedRequest : Request {
     }
 }
 
-interface PaginatedResult : Result {
+interface PaginatedResult : RequestResult {
     /**
      * An opaque token representing the pagination position after the last returned result.
      * If present, there may be more results available.
