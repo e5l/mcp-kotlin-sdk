@@ -1,14 +1,20 @@
 package shared
 
 import CancelledNotificationSchema
+import ErrorCode
 import JSONRPCNotification
 import JSONRPCRequest
 import JSONRPCResponse
 import Notification
+import PingRequestSchema
+import ProgressNotificationSchema
+import ProgressSchema
 import Request
 import RequestId
 import ResultSchema
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.serialization.json.*
 import java.util.concurrent.*
 import kotlin.time.Duration
@@ -17,9 +23,10 @@ import kotlin.time.Duration.Companion.milliseconds
 /**
  * Callback for progress notifications.
  */
-typealias ProgressCallback = (Progress) -> Unit
+typealias ProgressCallback = (ProgressSchema) -> Unit
 
 typealias AbortSignal = Job
+
 /**
  * Additional initialization options.
  */
@@ -77,357 +84,462 @@ data class RequestHandlerExtra(
     val signal: AbortSignal
 )
 
-interface AbortController {
-    val signal: AbortSignal
-    fun abort(reason: String? = null)
-}
+
+interface AbortController {}
+
 
 /**
  * Implements MCP protocol framing on top of a pluggable transport, including
  * features like request/response linking, notifications, and progress.
  */
 abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification, SendResultT : ResultSchema>(
-    private val options: ProtocolOptions? = null
+    private val _options: ProtocolOptions?
 ) {
-    @PublishedApi
-    internal val notificationHandlers = mutableMapOf<String, suspend (JSONRPCNotification) -> Unit>()
-    @PublishedApi
-    internal val requestHandlers = mutableMapOf<String, suspend (JSONRPCRequest, RequestHandlerExtra) -> SendResultT>()
-
-    private var transport: Transport? = null
-    private var requestMessageId = 0
-    private val requestHandlerCancellationTokens = mutableMapOf<RequestId, AbortController>()
-    private val responseHandlers = mutableMapOf<Int, (JSONRPCResponse?) -> Unit>()
-    private val progressHandlers = mutableMapOf<Int, ProgressCallback>()
+    private var _transport: Transport? = null
+    private var _requestMessageId = 0
+    private var _requestHandlers: MutableMap<String, (request: JSONRPCRequest, extra: RequestHandlerExtra) -> Deferred<SendResultT>> =
+        mutableMapOf()
+    private var _requestHandlerAbortControllers: MutableMap<RequestId, AbortController> = mutableMapOf()
+    private var _notificationHandlers: MutableMap<String, (notification: JSONRPCNotification) -> Deferred<Unit>> =
+        mutableMapOf()
+    private var _responseHandlers: MutableMap<Int, (response: JSONRPCResponse?, error: Error) -> Unit> = mutableMapOf()
+    private var _progressHandlers: MutableMap<Int, ProgressCallback> = mutableMapOf()
 
     /**
      * Callback for when the connection is closed for any reason.
+     *
+     * This is invoked when close() is called as well.
      */
-    var onClose: (() -> Unit)? = null
+    open fun onclose() {}
 
     /**
      * Callback for when an error occurs.
+     *
+     * Note that errors are not necessarily fatal they are used for reporting any kind of exceptional condition out of band.
      */
-    var onError: ((Throwable) -> Unit)? = null
+    open fun onerror(error: Error) {}
 
     /**
      * A handler to invoke for any request types that do not have their own handler installed.
      */
-    var fallbackRequestHandler: (suspend (Request) -> SendResultT)? = null
+    open fun fallbackRequestHandler(request: Request): Deferred<SendResultT> {
+        error("not implemented")
+    }
 
     /**
      * A handler to invoke for any notification types that do not have their own handler installed.
      */
-    var fallbackNotificationHandler: (suspend (Notification) -> Unit)? = null
+    open fun fallbackNotificationHandler(notification: Notification): Deferred<Unit> {
+        error("not implemented")
+    }
 
     init {
-        setNotificationHandler<CancelledNotificationSchema> { notification ->
-            val tokenSource = requestHandlerCancellationTokens[notification.params.requestId]
-            tokenSource?.cancel(notification.params.reason)
-        }
+        this.setNotificationHandler(CancelledNotificationSchema, (notification) -> {
+            const controller = this._requestHandlerAbortControllers.get(
+            notification.params.requestId,
+        )
+            controller?.abort(notification.params.reason)
+        })
 
-        setNotificationHandler(ProgressNotificationSchema) { notification ->
-            onProgress(notification as ProgressNotification)
-        }
+        this.setNotificationHandler(ProgressNotificationSchema, (notification) -> {
+            this._onprogress(notification as unknown as ProgressNotification)
+        })
 
-        setRequestHandler(PingRequestSchema) { _ ->
-            @Suppress("UNCHECKED_CAST")
-            (JsonObject(emptyMap()) as SendResultT)
-        }
+        this.setRequestHandler(
+            PingRequestSchema,
+            // Automatic pong by default.
+            (_request) -> ({}) as SendResultT,
+        )
     }
 
     /**
      * Attaches to the given transport, starts it, and starts listening for messages.
      *
-     * The Protocol object assumes ownership of the Transport, replacing any callbacks
-     * that have already been set, and expects that it is the only user of the Transport
-     * instance going forward.
+     * The Protocol object assumes ownership of the Transport, replacing any callbacks that have already been set, and expects that it is the only user of the Transport instance going forward.
      */
-    suspend fun connect(newTransport: Transport) {
-        transport = newTransport
-        transport?.apply {
-            onClose = { handleClose() }
-            onError = { error -> handleError(error) }
-            onMessage = { message ->
-                when {
-                    !message.containsKey("method") -> handleResponse(message as JSONRPCResponse)
-                    message.containsKey("id") -> handleRequest(message as JSONRPCRequest)
-                    else -> handleNotification(message as JSONRPCNotification)
-                }
-            }
-        }
-        transport?.start()
-    }
-
-    private fun handleClose() {
-        val handlers = responseHandlers.toMap()
-        responseHandlers.clear()
-        progressHandlers.clear()
-        transport = null
-        onClose?.invoke()
-
-        val error = McpError(ErrorCode.ConnectionClosed, "Connection closed")
-        handlers.values.forEach { handler ->
-            handler(null) // null indicates error
-        }
-    }
-
-    private fun handleError(error: Throwable) {
-        onError?.invoke(error)
-    }
-
-    private suspend fun handleNotification(notification: JSONRPCNotification) {
-        val handler = notificationHandlers[notification.method] ?: fallbackNotificationHandler
-
-        // Ignore notifications not being subscribed to
-        handler ?: return
-
-        try {
-            handler(notification)
-        } catch (e: Exception) {
-            handleError(Error("Uncaught error in notification handler: ${e.message}"))
-        }
-    }
-
-    private suspend fun handleRequest(request: JSONRPCRequest) {
-        val handler = requestHandlers[request.method] ?: fallbackRequestHandler
-
-        if (handler == null) {
-            transport?.send(JSONRPCError(
-                id = request.id,
-                error = ErrorResponse(
-                    code = ErrorCode.MethodNotFound,
-                    message = "Method not found"
-                )
-            ))
-            return
+    fun connect(transport: Transport): Deferred<Unit> {
+        this._transport = transport
+        this._transport.onclose = () -> {
+            this._onclose()
         }
 
-        val cancellationSource = CancellationTokenSource()
-        requestHandlerCancellationTokens[request.id] = cancellationSource
-
-        try {
-            val result = handler(request, RequestHandlerExtra(cancellationSource.token))
-            if (!cancellationSource.token.isCancelled) {
-                transport?.send(JSONRPCResponse(
-                    jsonrpc = "2.0",
-                    id = request.id,
-                    result = result
-                ))
-            }
-        } catch (e: Exception) {
-            if (!cancellationSource.token.isCancelled) {
-                transport?.send(JSONRPCError(
-                    jsonrpc = "2.0",
-                    id = request.id,
-                    error = ErrorResponse(
-                        code = (e as? McpError)?.code ?: ErrorCode.InternalError,
-                        message = e.message ?: "Internal error"
-                    )
-                ))
-            }
-        } finally {
-            requestHandlerCancellationTokens.remove(request.id)
-        }
-    }
-
-    private fun handleProgress(notification: ProgressNotification) {
-        val (progress, total, progressToken) = notification.params
-        val handler = progressHandlers[progressToken.toInt()]
-
-        if (handler == null) {
-            handleError(Error("Received a progress notification for unknown token: $notification"))
-            return
+        this._transport.onerror = (error: Error) -> {
+            this._onerror(error)
         }
 
-        handler(Progress(progress, total))
-    }
-
-    private fun handleResponse(response: JSONRPCResponse) {
-        val messageId = response.id.toInt()
-        val handler = responseHandlers.remove(messageId)
-
-        if (handler == null) {
-            handleError(Error("Received a response for unknown message ID: $response"))
-            return
-        }
-
-        progressHandlers.remove(messageId)
-        handler(response)
-    }
-
-    /**
-     * A method to check if a capability is supported by the remote side, for the given method to be called.
-     */
-    protected abstract fun assertCapabilityForMethod(method: String)
-
-    /**
-     * A method to check if a notification is supported by the local side, for the given method to be sent.
-     */
-    protected abstract fun assertNotificationCapability(method: String)
-
-    /**
-     * A method to check if a request handler is supported by the local side, for the given method to be handled.
-     */
-    abstract fun assertRequestHandlerCapability(method: String)
-
-    /**
-     * Sends a request and waits for a response.
-     *
-     * Do not use this method to emit notifications! Use notification() instead.
-     */
-    suspend fun <T> request(
-        request: SendRequestT,
-        resultSchema: JsonSchema<T>,
-        options: RequestOptions? = null
-    ): T {
-        val transport = transport ?: throw IllegalStateException("Not connected")
-
-        if (options?.enforceStrictCapabilities == true) {
-            assertCapabilityForMethod(request.method)
-        }
-
-        options?.signal?.throwIfCancelled()
-
-        val messageId = requestMessageId++
-        val jsonrpcRequest = JSONRPCRequest(
-            jsonrpc = "2.0",
-            id = messageId,
-            method = request.method,
-            params = if (options?.onProgress != null) {
-                request.params.copy(_meta = MetaData(progressToken = messageId))
+        this._transport.onmessage = (message) -> {
+            if (!("method" in message)) {
+                this._onresponse(message)
+            } else if ("id" in message) {
+                this._onrequest(message)
             } else {
-                request.params
+                this._onnotification(message)
             }
+        }
+
+        await this._transport.start()
+    }
+
+    private fun _onclose(): Unit {
+        const responseHandlers = this._responseHandlers
+        this._responseHandlers = mutableMapOf()
+        this._progressHandlers.clear()
+        this._transport = undefined
+        this.onclose?.()
+
+        const error = new McpError(ErrorCode.ConnectionClosed, "Connection closed")
+        for (const handler of responseHandlers.values()) {
+            handler(error)
+        }
+    }
+
+    private fun _onerror(error: Error): Unit {
+        this.onerror?.(error)
+    }
+
+    private fun _onnotification(notification: JSONRPCNotification): Unit {
+        const handler =
+        this._notificationHandlers.get(notification.method) ??
+        this.fallbackNotificationHandler
+
+        // Ignore notifications not being subscribed to.
+        if (handler === undefined) {
+            return
+        }
+
+        // Starting with Deferred.resolve() puts any synchronous errors into the monad as well.
+        Deferred.resolve().then(() -> handler(notification))
+        .catch((error) ->
+        this._onerror(
+            new Error (`Uncaught error in notification handler: ${error}`),
+        ),
         )
-
-        return suspendCancellableCoroutine { continuation ->
-            val timeoutJob = if (options?.timeout != null) {
-                CoroutineScope(Dispatchers.Default).launch {
-                    delay(options.timeout)
-                    if (continuation.isActive) {
-                        continuation.resumeWithException(
-                            McpError(
-                                ErrorCode.RequestTimeout,
-                                "Request timed out",
-                                mapOf("timeout" to options.timeout.inWholeMilliseconds)
-                            )
-                        )
-                    }
-                }
-            } else null
-
-            options?.onProgress?.let { callback ->
-                progressHandlers[messageId] = callback
-            }
-
-            responseHandlers[messageId] = { response ->
-                timeoutJob?.cancel()
-                when {
-                    response == null -> {
-                        continuation.resumeWithException(
-                            McpError(ErrorCode.ConnectionClosed, "Connection closed")
-                        )
-                    }
-                    response is JSONRPCError -> {
-                        continuation.resumeWithException(
-                            McpError(response.error.code, response.error.message, response.error.data)
-                        )
-                    }
-                    else -> try {
-                        val result = resultSchema.parse(response.result)
-                        continuation.resume(result)
-                    } catch (e: Exception) {
-                        continuation.resumeWithException(e)
-                    }
-                }
-            }
-
-            options?.signal?.invokeOnCancellation {
-                responseHandlers.remove(messageId)
-                progressHandlers.remove(messageId)
-                transport.send(JSONRPCNotification(
-                    jsonrpc = "2.0",
-                    method = "notifications/cancelled",
-                    params = CancelledParams(
-                        requestId = messageId,
-                        reason = it?.message ?: "Cancelled"
-                    )
-                ))
-            }
-
-            launch {
-                try {
-                    transport.send(jsonrpcRequest)
-                } catch (e: Exception) {
-                    timeoutJob?.cancel()
-                    continuation.resumeWithException(e)
-                }
-            }
-        }
     }
 
-    /**
-     * Emits a notification, which is a one-way message that does not expect a response.
-     */
-    suspend fun notification(notification: SendNotificationT) {
-        val transport = transport ?: throw IllegalStateException("Not connected")
-        assertNotificationCapability(notification.method)
+    private fun _onrequest(request: JSONRPCRequest): Unit {
+        const handler =
+        this._requestHandlers.get(request.method) ?? this.fallbackRequestHandler
 
-        val jsonrpcNotification = JSONRPCNotification(
-            jsonrpc = "2.0",
-            method = notification.method,
-            params = notification.params
+        if (handler === undefined) {
+            this._transport?.send({
+                jsonrpc: "2.0",
+                id: request.id,
+                error: {
+                code: ErrorCode.MethodNotFound,
+                message: "Method not found",
+            },
+            }).catch((error) ->
+            this._onerror(
+                new Error (`Failed to send an error response: ${error}`),
+            ),
+            )
+            return
+        }
+
+        const abortController = new AbortController()
+        this._requestHandlerAbortControllers.set(request.id, abortController)
+
+        // Starting with Deferred.resolve() puts any synchronous errors into the monad as well.
+        Deferred.resolve().then(() -> handler(request, { signal: abortController.signal }))
+        .then(
+            (result) -> {
+            if (abortController.signal.aborted) {
+                return
+            }
+
+            return this._transport?.send({
+                result,
+                jsonrpc: "2.0",
+                id: request.id,
+            })
+        },
+        (error) -> {
+            if (abortController.signal.aborted) {
+                return
+            }
+
+            return this._transport?.send({
+                jsonrpc: "2.0",
+                id: request.id,
+                error: {
+                code: Number.isSafeInteger(error["code"])
+                ? error["code"]
+                : ErrorCode.InternalError,
+                message: error.message ?? "Internal error",
+            },
+            })
+        },
         )
-
-        transport.send(jsonrpcNotification)
+        .catch((error) ->
+        this._onerror(new Error (`Failed to send response: ${error}`)),
+        )
+        .finally(() -> {
+            this._requestHandlerAbortControllers.delete(request.id)
+        })
     }
 
-    /**
-     * Registers a handler to invoke when this protocol object receives a request with the given method.
-     */
-    inline fun <reified T> setRequestHandler(
-        noinline handler: suspend (T, RequestHandlerExtra) -> SendResultT
-    ) {
-        val method = T::class.qualifiedName.toString()
-        assertRequestHandlerCapability(method)
-        requestHandlers[method] = { request, extra ->
-            handler(Json.decodeFromString(request), extra)
+    private fun _onprogress(notification: ProgressNotification): Unit {
+        const { progress, total, progressToken } = notification.params
+        const handler = this._progressHandlers.get(Number(progressToken))
+        if (handler === undefined) {
+            this._onerror(
+                new Error (`Received a progress notification for an unknown token: ${JSON.stringify(notification)}`,
+            ),
+            )
+            return
+        }
+
+        handler({ progress, total })
+    }
+
+    private fun _onresponse(response: JSONRPCResponse | JSONRPCError): Unit
+    {
+        const messageId = response . id const handler = this._responseHandlers.get(Number(messageId))
+        if (handler === undefined) {
+            this._onerror(
+                new Error (`Received a response for an unknown message ID: ${JSON.stringify(response)}`,
+            ),
+            )
+            return
+        }
+
+        this._responseHandlers.delete(Number(messageId))
+        this._progressHandlers.delete(Number(messageId))
+        if ("result" in response) {
+            handler(response)
+        } else {
+            const error = new McpError(
+                response.error.code,
+                response.error.message,
+                response.error.data,
+            )
+            handler(error)
         }
     }
 
-    /**
-     * Removes the request handler for the given method.
-     */
-    fun removeRequestHandler(method: String) {
-        requestHandlers.remove(method)
-    }
-
-    /**
-     * Registers a handler to invoke when this protocol object receives a notification with the given method.
-     */
-    inline fun <reified T> setNotificationHandler(
-        noinline handler: suspend (T) -> Unit
-    ) {
-        val name = T::class.qualifiedName.toString()
-        notificationHandlers[name] = { notification ->
-            val value = Json.decodeFromString<T>(notification)
-            handler(notification)
-        }
-    }
-
-    /**
-     * Removes the notification handler for the given method.
-     */
-    fun removeNotificationHandler(method: String) {
-        notificationHandlers.remove(method)
+    fun get_transport(): Transport?
+    {
+        return this._transport
     }
 
     /**
      * Closes the connection.
      */
-    suspend fun close() {
-        transport?.close()
+    fun close(): Deferred<Unit>
+    {
+        return this._transport!!.close()
+    }
+
+    /**
+     * A method to check if a capability is supported by the remote side, for the given method to be called.
+     *
+     * This should be implemented by subclasses.
+     */
+    protected abstract assertCapabilityForMethod(
+    method: SendRequestT["method"],
+    ): Unit
+
+    /**
+     * A method to check if a notification is supported by the local side, for the given method to be sent.
+     *
+     * This should be implemented by subclasses.
+     */
+    protected abstract assertNotificationCapability(
+    method: SendNotificationT["method"],
+    ): Unit
+
+    /**
+     * A method to check if a request handler is supported by the local side, for the given method to be handled.
+     *
+     * This should be implemented by subclasses.
+     */
+    protected abstract assertRequestHandlerCapability(method: string): Unit
+
+    /**
+     * Sends a request and wait for a response.
+     *
+     * Do not use this method to emit notifications! Use notification() instead.
+     */
+    request<T extends ZodType<
+    object>>(
+    request: SendRequestT,
+    resultSchema: T,
+    options?: RequestOptions,
+    ): Deferred<z.infer<T>>
+    {
+        return new Deferred ((resolve, reject) -> {
+        if (!this._transport) {
+            reject(new Error ("Not connected"))
+            return
+        }
+
+        if (this._options?.enforceStrictCapabilities === true) {
+            this.assertCapabilityForMethod(request.method)
+        }
+
+        options?.signal?.throwIfAborted()
+
+        const messageId = this._requestMessageId++
+        const jsonrpcRequest : JSONRPCRequest = {
+            ...request,
+            jsonrpc: "2.0",
+            id: messageId,
+        }
+
+        if (options?.onprogress) {
+            this._progressHandlers.set(messageId, options.onprogress)
+            jsonrpcRequest.params = {
+                ...request.params,
+                _meta: { progressToken: messageId },
+            }
+        }
+
+        let timeoutId : ReturnType <typeof setTimeout> | undefined = undefined
+
+        this._responseHandlers.set(messageId, (response) -> {
+        if (timeoutId !== undefined) {
+            clearTimeout(timeoutId)
+        }
+
+        if (options?.signal?.aborted) {
+            return
+        }
+
+        if (response instanceof Error) {
+            return reject(response)
+        }
+
+        try {
+            const result = resultSchema . parse (response.result)
+            resolve(result)
+        } catch (error) {
+            reject(error)
+        }
+    })
+
+        const cancel =(reason: unknown) -> {
+        this._responseHandlers.delete(messageId)
+        this._progressHandlers.delete(messageId)
+
+        this._transport?.send({
+            jsonrpc: "2.0",
+            method: "notifications/cancelled",
+            params: {
+            requestId: messageId,
+            reason: String(reason),
+        },
+        }).catch((error) ->
+        this._onerror(new Error (`Failed to send cancellation: ${error}`)),
+        )
+
+        reject(reason)
+    }
+
+        options?.signal?.addEventListener("abort", () -> {
+        if (timeoutId !== undefined) {
+            clearTimeout(timeoutId)
+        }
+
+        cancel(options?.signal?.reason)
+    })
+
+        const timeout = options ?. timeout ?? DEFAULT_REQUEST_TIMEOUT_MSEC
+        timeoutId = setTimeout(
+            () ->
+        cancel(
+            new McpError (ErrorCode.RequestTimeout, "Request timed out", { timeout,
+            }),
+        ),
+        timeout,
+        )
+
+        this._transport.send(jsonrpcRequest).catch((error) -> {
+        if (timeoutId !== undefined) {
+            clearTimeout(timeoutId)
+        }
+
+        reject(error)
+    })
+    })
+    }
+
+    /**
+     * Emits a notification, which is a one-way message that does not expect a response.
+     */
+    async notification(notification: SendNotificationT): Deferred<Unit>
+    {
+        if (!this._transport) {
+            throw new Error ("Not connected")
+        }
+
+        this.assertNotificationCapability(notification.method)
+
+        const jsonrpcNotification : JSONRPCNotification = {
+            ...notification,
+            jsonrpc: "2.0",
+        }
+
+        await this._transport.send(jsonrpcNotification)
+    }
+
+    /**
+     * Registers a handler to invoke when this protocol object receives a request with the given method.
+     *
+     * Note that this will replace any previous request handler for the same method.
+     */
+    setRequestHandler<
+    T extends ZodObject<
+    {
+        method: ZodLiteral<string>
+    }>,
+    >(
+    requestSchema: T,
+    handler: (
+    request: z.infer<T>,
+    extra: RequestHandlerExtra,
+    ) -> SendResultT | Deferred<SendResultT>,
+    ): Unit
+    {
+        const method = requestSchema . shape . method . value this.assertRequestHandlerCapability(method)
+        this._requestHandlers.set(method, (request, extra) ->
+        Deferred.resolve(handler(requestSchema.parse(request), extra)),
+        )
+    }
+
+    /**
+     * Removes the request handler for the given method.
+     */
+    removeRequestHandler(method: string): Unit
+    {
+        this._requestHandlers.delete(method)
+    }
+
+    /**
+     * Registers a handler to invoke when this protocol object receives a notification with the given method.
+     *
+     * Note that this will replace any previous notification handler for the same method.
+     */
+    setNotificationHandler<
+    T extends ZodObject<
+    {
+        method: ZodLiteral<string>
+    }>,
+    >(
+    notificationSchema: T,
+    handler: (notification: z.infer<T>) -> Unit | Deferred<Unit>,
+    ): Unit
+    {
+        this._notificationHandlers.set(
+            notificationSchema.shape.method.value, (notification) ->
+        Deferred.resolve(handler(notificationSchema.parse(notification))),
+        )
+    }
+
+    /**
+     * Removes the notification handler for the given method.
+     */
+    removeNotificationHandler(method: string): Unit
+    {
+        this._notificationHandlers.delete(method)
     }
 }
-
