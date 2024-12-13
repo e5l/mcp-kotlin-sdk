@@ -3,6 +3,9 @@ package client
 import ClientCapabilities
 import CreateMessageRequest
 import CreateMessageResult
+import CustomMeta
+import CustomRequest
+import CustomResult
 import Implementation
 import InitializeRequest
 import InitializeResult
@@ -10,11 +13,15 @@ import JSONRPCMessage
 import JSONRPCResponse
 import LATEST_PROTOCOL_VERSION
 import ListRootsRequest
+import Method
+import Role
 import SUPPORTED_PROTOCOL_VERSIONS
 import ServerCapabilities
 import TextContent
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import shared.Transport
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -214,48 +221,53 @@ class ClientTest {
             client.setRequestHandler<ListRootsRequest>(Method.Defined.RootsList) { _, _ -> null }
         }
     }
-}
 
-///*
-//  Test that custom request/notification/result schemas can be used with the Client class.
-//  */
-//test("should typecheck", () => {
-//    const GetWeatherRequestSchema = RequestSchema.extend({
-//        method: z.literal("weather/get"),
-//        params: z.object({
-//        city: z.string(),
-//    }),
-//    });
-//
-//    const GetForecastRequestSchema = RequestSchema.extend({
-//        method: z.literal("weather/forecast"),
-//        params: z.object({
-//        city: z.string(),
-//        days: z.number(),
-//    }),
-//    });
-//
-//    const WeatherForecastNotificationSchema = NotificationSchema.extend({
-//        method: z.literal("weather/alert"),
-//        params: z.object({
-//        severity: z.enum(["warning", "watch"]),
-//        message: z.string(),
-//    }),
-//    });
-//
-//    const WeatherRequestSchema = GetWeatherRequestSchema.or(
-//            GetForecastRequestSchema,
-//    );
-//    const WeatherNotificationSchema = WeatherForecastNotificationSchema;
-//    const WeatherResultSchema = ResultSchema.extend({
-//        temperature: z.number(),
-//        conditions: z.string(),
-//    });
-//
-//    type WeatherRequest = z.infer<typeof WeatherRequestSchema>;
-//    type WeatherNotification = z.infer<typeof WeatherNotificationSchema>;
-//    type WeatherResult = z.infer<typeof WeatherResultSchema>;
-//
+    @Serializable
+    class GetWeatherRequest(val city: String) : CustomRequest(
+        Method.Custom("weather/get"),
+        CustomMeta(JsonObject(mutableMapOf("city" to JsonPrimitive(city))))
+    ), WeatherRequest
+
+    @Serializable
+    class GetForecastRequest(val city: String, val days: Int) : CustomRequest(
+        Method.Custom("weather/forecast"),
+        CustomMeta(JsonObject(mutableMapOf("city" to JsonPrimitive(city), "days" to JsonPrimitive(days))))
+    ), WeatherRequest
+
+    @Serializable
+    enum class Severity {
+        warning, watch
+    }
+
+    @Serializable
+    class WeatherForecastNotification(val severity: Severity, val message: String) : CustomRequest(
+        Method.Custom("weather/alert"),
+        CustomMeta(
+            JsonObject(
+                mutableMapOf(
+                    "severity" to JsonPrimitive(severity.name),
+                    "message" to JsonPrimitive(message)
+                )
+            )
+        )
+    ), WeatherNotification
+
+    @Serializable
+    class WeatherResult(val temperature: Double, val conditions: String) : CustomResult() {
+        override val _meta: JsonObject? = null
+    }
+
+    @Serializable
+    sealed interface WeatherRequest
+
+    @Serializable
+    sealed interface WeatherNotification
+    //    const WeatherNotificationSchema = WeatherForecastNotificationSchema;
+
+
+    fun `should typecheck`() {
+    }
+}
 //    // Create a typed Client for weather data
 //    const weatherClient = new Client<
 //            WeatherRequest,

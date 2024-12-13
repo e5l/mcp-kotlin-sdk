@@ -40,7 +40,7 @@ internal object RequestMethodSerializer : KSerializer<Method> {
     override fun deserialize(decoder: Decoder): Method {
         val decodedString = decoder.decodeString()
         return Method.Defined.entries.firstOrNull { it.value == decodedString }
-            ?: Method.Unknown(decodedString)
+            ?: Method.Custom(decodedString)
     }
 }
 
