@@ -142,12 +142,12 @@ data class JSONRPCNotification(
  * A successful (non-error) response to a request.
  */
 @Serializable
-open class JSONRPCResponse(
+class JSONRPCResponse(
     val id: RequestId,
+    val jsonrpc: String = JSONRPC_VERSION,
     val result: RequestResult,
-) : JSONRPCMessage {
-    val jsonrpc: String = JSONRPC_VERSION
-}
+    val error: JSONRPCError
+) : JSONRPCMessage
 
 /**
  * An incomplete set of error codes that may appear in JSON-RPC responses.
@@ -180,18 +180,10 @@ sealed interface ErrorCode {
  */
 @Serializable
 class JSONRPCError(
-    val id: RequestId,
-    val error: Error,
-) : JSONRPCMessage {
-    val jsonrpc: String = JSONRPC_VERSION
-
-    @Serializable
-    class Error(
-        val code: ErrorCode,
-        val message: String,
-        val data: JsonObject?,
-    )
-}
+    val code: ErrorCode,
+    val message: String,
+    val data: JsonObject?,
+)
 
 /* Empty result */
 /**

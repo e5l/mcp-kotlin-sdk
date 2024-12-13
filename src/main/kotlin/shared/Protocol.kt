@@ -451,7 +451,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
     /**
      * Emits a notification, which is a one-way message that does not expect a response.
      */
-    suspend fun notification(notification: JSONRPCNotification) {
+    suspend fun notification(notification: SendNotificationT) {
         val transport = this.transport ?: error("Not connected")
         assertNotificationCapability(notification.method)
         transport.send(notification)
