@@ -121,7 +121,7 @@ sealed interface JSONRPCMessage
  * A request that expects a response.
  */
 @Serializable
-class JSONRPCRequest(
+data class JSONRPCRequest(
     val method: String,
     val params: JsonObject,
     val jsonrpc: String = JSONRPC_VERSION,
@@ -132,9 +132,11 @@ class JSONRPCRequest(
  * A notification which does not expect a response.
  */
 @Serializable
-sealed class JSONRPCNotification : Notification, JSONRPCMessage {
+data class JSONRPCNotification(
+    val method: String,
+    val params: JsonObject,
     val jsonrpc: String = JSONRPC_VERSION
-}
+) : JSONRPCMessage
 
 /**
  * A successful (non-error) response to a request.
@@ -213,7 +215,7 @@ object EmptyResult : ClientResult, ServerResult {
 @Serializable
 data class CancelledNotification(
     override val params: Params,
-) : ClientNotification, ServerNotification, JSONRPCNotification() {
+) : ClientNotification, ServerNotification {
     override val method: Method = Method.Defined.NotificationsCancelled
 
     @Serializable
@@ -388,7 +390,7 @@ data class InitializeResult(
 @Serializable
 data class InitializedNotification(
     override val params: WithMeta? = null,
-) : ClientNotification, JSONRPCNotification() {
+) : ClientNotification {
     override val method: Method = Method.Defined.NotificationsInitialized
 }
 
@@ -436,7 +438,7 @@ open class Progress(
 @Serializable
 data class ProgressNotification(
     override val params: Params,
-) : ClientNotification, ServerNotification, JSONRPCNotification() {
+) : ClientNotification, ServerNotification {
     override val method: Method = Method.Defined.NotificationsProgress
 
     /**
@@ -641,7 +643,7 @@ class ReadResourceResult(
 @Serializable
 data class ResourceListChangedNotification(
     override val params: WithMeta? = null,
-) : ServerNotification, JSONRPCNotification() {
+) : ServerNotification {
     override val method: Method = Method.Defined.NotificationsResourcesListChanged
 }
 
@@ -689,7 +691,7 @@ data class UnsubscribeRequest(
 @Serializable
 data class ResourceUpdatedNotification(
     override val params: Params,
-) : ServerNotification, JSONRPCNotification() {
+) : ServerNotification {
     override val method: Method = Method.Defined.NotificationsResourcesUpdated
 
     @Serializable
@@ -889,7 +891,7 @@ class GetPromptResult(
 @Serializable
 data class PromptListChangedNotification(
     override val params: WithMeta? = null,
-) : ServerNotification, JSONRPCNotification() {
+) : ServerNotification {
     override val method: Method = Method.Defined.NotificationsPromptsListChanged
 }
 
@@ -992,7 +994,7 @@ data class CallToolRequest(
 @Serializable
 data class ToolListChangedNotification(
     override val params: WithMeta? = null,
-) : ServerNotification, JSONRPCNotification() {
+) : ServerNotification {
     override val method: Method = Method.Defined.NotificationsToolsListChanged
 }
 
@@ -1020,7 +1022,7 @@ enum class LoggingLevel {
 @Serializable
 data class LoggingMessageNotification(
     override val params: Params,
-) : ServerNotification, JSONRPCNotification() {
+) : ServerNotification {
     /**
      * A request from the client to the server, to enable or adjust logging.
      */
@@ -1364,7 +1366,7 @@ class ListRootsResult(
 @Serializable
 data class RootsListChangedNotification(
     override val params: WithMeta? = null,
-) : ClientNotification, JSONRPCNotification() {
+) : ClientNotification {
     override val method: Method = Method.Defined.NotificationsRootsListChanged
 }
 
