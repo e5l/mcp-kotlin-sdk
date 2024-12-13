@@ -58,8 +58,6 @@ open class ProtocolOptions(
 
     var signal: AbortSignal? = null,
 
-    var onprogress: ProgressCallback? = null,
-
     var timeout: Duration = DEFAULT_REQUEST_TIMEOUT
 )
 
@@ -383,13 +381,12 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
      */
     fun <T: RequestResult> request(
         request: SendRequestT,
-        options: RequestOptions = RequestOptions(),
+        options: RequestOptions? = null,
     ): Deferred<T> {
         val result = CompletableDeferred<RequestResult>()
         val transport = this@Protocol._transport ?: throw Error("Not connected")
-        val options = this@Protocol._options
 
-        if (options?.enforceStrictCapabilities == true) {
+        if (_options?.enforceStrictCapabilities == true) {
             assertCapabilityForMethod(request.method)
         }
 
@@ -403,8 +400,8 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
 //                id: messageId,
 //            }
 
-        if (options?.onprogress != null) {
-            _progressHandlers[messageId] = options.onprogress!!
+        if (options?.onProgress != null) {
+            _progressHandlers[messageId] = options.onProgress
 //                jsonrpcRequest.params = {
 //                    ...request.params,
 //                    _meta: { progressToken: messageId },
@@ -461,7 +458,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
                 clearTimeout(timeoutId)
             }
 
-            cancel(options.signal?.reason ?: Exception("Aborted"))
+            cancel(options.signal.reason ?: Exception("Aborted"))
         })
 
         val timeout = options?.timeout ?: DEFAULT_REQUEST_TIMEOUT
@@ -479,9 +476,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
         )
 
         _transport!!.send(jsonrpcRequest).invokeOnCompletion { error ->
-            if (timeoutId !== null) {
-                clearTimeout(timeoutId)
-            }
+            clearTimeout(timeoutId)
             result.cancel("", error)
         }
     }
