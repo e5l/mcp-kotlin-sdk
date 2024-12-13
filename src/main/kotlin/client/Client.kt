@@ -16,18 +16,26 @@ import GetPromptResult
 import Implementation
 import InitializeRequest
 import InitializeResult
+import InitializedNotification
 import LATEST_PROTOCOL_VERSION
+import ListPromptsRequest
 import ListPromptsResult
+import ListResourceTemplatesRequest
 import ListResourceTemplatesResult
+import ListResourcesRequest
 import ListResourcesResult
+import ListToolsRequest
 import ListToolsResult
+import LoggingLevel
+import LoggingMessageNotification.SetLevelRequest
 import Method
+import PaginatedRequest
 import PingRequest
 import ReadResourceRequest
 import ReadResourceResult
+import RootsListChangedNotification
 import SUPPORTED_PROTOCOL_VERSIONS
 import ServerCapabilities
-import SetLevelRequest
 import SubscribeRequest
 import UnsubscribeRequest
 import kotlinx.coroutines.Deferred
@@ -59,14 +67,10 @@ class ClientOptions(
  * ) : Client<CustomRequest, CustomNotification, CustomResult>(clientInfo, options)
  * ```
  */
-open class Client<
-        RequestT : ClientRequest,
-        NotificationT : ClientNotification,
-        ResultT : ClientResult
-        >(
+open class Client(
     private val clientInfo: Implementation,
     options: ClientOptions
-) : Protocol<RequestT, NotificationT, ResultT>(options) {
+) : Protocol<ClientRequest, ClientNotification, ClientResult>(options) {
 
     private var serverCapabilities: ServerCapabilities? = null
     private var serverVersion: Implementation? = null
@@ -116,11 +120,7 @@ open class Client<
                 serverCapabilities = result.capabilities
                 serverVersion = result.serverInfo
 
-                notification(
-                    NotificationBase(
-                        method = Method.Defined.NotificationsInitialized
-                    )
-                )
+                notification(InitializedNotification())
             } catch (error: Throwable) {
                 close()
                 throw error
@@ -244,84 +244,72 @@ open class Client<
     }
 
     suspend fun complete(params: CompleteRequest.Params, options: RequestOptions? = null): CompleteResult? {
-        return request(
-            RequestBase(method = Method.Defined.CompletionComplete, params = params),
-            CompleteResult::class,
+        return request<CompleteResult>(
+            CompleteRequest(params),
             options
-        )
+        ).await()
     }
 
     suspend fun setLoggingLevel(level: LoggingLevel, options: RequestOptions? = null) {
-        request(
-            RequestBase(method = Method.Defined.LoggingSetLevel, params = SetLevelRequest.Params(level)),
-            EmptyResult::class,
+        request<EmptyResult>(
+            SetLevelRequest(SetLevelRequest.Params(level)),
             options
-        )
+        ).await()
     }
 
     suspend fun getPrompt(params: GetPromptRequest.Params, options: RequestOptions? = null): GetPromptResult? {
-        return request(
-            RequestBase(method = Method.Defined.PromptsGet, params = params),
-            GetPromptResult::class,
+        return request<GetPromptResult>(
+            GetPromptRequest(params),
             options
-        )
+        ).await()
     }
 
     suspend fun listPrompts(
-        params: ListPromptsRequest.Params? = null,
+        params: PaginatedRequest.Params? = null,
         options: RequestOptions? = null
     ): ListPromptsResult? {
-        return request(
-            RequestBase(method = Method.Defined.PromptsList, params = params),
-            ListPromptsResult::class,
-            options
-        )
+        return request<ListPromptsResult>(ListPromptsRequest(params = params), options).await()
     }
 
     suspend fun listResources(
-        params: ListResourcesRequest.Params? = null,
+        params: PaginatedRequest.Params? = null,
         options: RequestOptions? = null
     ): ListResourcesResult? {
-        return request(
-            RequestBase(method = Method.Defined.ResourcesList, params = params),
-            ListResourcesResult::class,
+        return request<ListResourcesResult>(
+            ListResourcesRequest(params),
             options
-        )
+        ).await()
     }
 
     suspend fun listResourceTemplates(
-        params: ListResourceTemplatesRequest.Params? = null,
+        params: PaginatedRequest.Params? = null,
         options: RequestOptions? = null
     ): ListResourceTemplatesResult? {
-        return request(
-            RequestBase(method = Method.Defined.ResourcesTemplatesList, params = params),
-            ListResourceTemplatesResult::class,
+        return request<ListResourceTemplatesResult>(
+            ListResourceTemplatesRequest(params),
             options
-        )
+        ).await()
     }
 
     suspend fun readResource(params: ReadResourceRequest.Params, options: RequestOptions? = null): ReadResourceResult? {
-        return request(
-            RequestBase(method = Method.Defined.ResourcesRead, params = params),
-            ReadResourceResult::class,
+        return request<ReadResourceResult>(
+            ReadResourceRequest(params = params),
             options
-        )
+        ).await()
     }
 
     suspend fun subscribeResource(params: SubscribeRequest.Params, options: RequestOptions? = null) {
-        request(
-            RequestBase(method = Method.Defined.ResourcesSubscribe, params = params),
-            EmptyResult::class,
+        request<EmptyResult>(
+            SubscribeRequest(params = params),
             options
-        )
+        ).await()
     }
 
     suspend fun unsubscribeResource(params: UnsubscribeRequest.Params, options: RequestOptions? = null) {
-        request(
-            RequestBase(method = Method.Defined.ResourcesUnsubscribe, params = params),
-            EmptyResult::class,
+        request<EmptyResult>(
+            UnsubscribeRequest(params = params),
             options
-        )
+        ).await()
     }
 
     suspend fun callTool(
@@ -329,23 +317,29 @@ open class Client<
         compatibility: Boolean = false,
         options: RequestOptions? = null
     ): CallToolResultBase? {
-        val resultClass = if (compatibility) CompatibilityCallToolResult::class else CallToolResult::class
-        return request(
-            RequestBase(method = Method.Defined.ToolsCall, params = params),
-            resultClass,
-            options
-        )
+        val result: Deferred<CallToolResultBase> = if (compatibility) {
+            request<CompatibilityCallToolResult>(
+                CallToolRequest(params = params),
+                options
+            )
+        } else {
+            request<CallToolResult>(
+                CallToolRequest(params = params),
+                options
+            )
+        }
+
+        return result.await()
     }
 
-    suspend fun listTools(params: ListToolsRequest.Params? = null, options: RequestOptions? = null): ListToolsResult? {
-        return request(
-            RequestBase(method = Method.Defined.ToolsList, params = params),
-            ListToolsResult::class,
+    suspend fun listTools(params: PaginatedRequest.Params? = null, options: RequestOptions? = null): ListToolsResult? {
+        return request<ListToolsResult>(
+            ListToolsRequest(params),
             options
-        )
+        ).await()
     }
 
     suspend fun sendRootsListChanged() {
-        notification(NotificationBase(method = Method.Defined.NotificationsRootsListChanged))
+        notification(RootsListChangedNotification()).await()
     }
 }
