@@ -3,7 +3,8 @@ package shared
 import JSONRPCMessage
 import io.ktor.utils.io.core.*
 import kotlinx.io.Buffer
-import kotlinx.io.readLine
+import kotlinx.io.indexOf
+import kotlinx.io.readString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -19,7 +20,25 @@ class ReadBuffer {
 
     fun readMessage(): JSONRPCMessage? {
         if (buffer.exhausted()) return null
-        val line = buffer.readLine() ?: return null
+        var lfIndex = buffer.indexOf('\n'.code.toByte())
+        val line = when (lfIndex) {
+            -1L -> return null
+            0L -> {
+                buffer.skip(1)
+                ""
+            }
+
+            else -> {
+                var skipBytes = 1
+                if (buffer[lfIndex - 1] == '\r'.code.toByte()) {
+                    lfIndex -= 1
+                    skipBytes += 1
+                }
+                val string = buffer.readString(lfIndex)
+                buffer.skip(skipBytes.toLong())
+                string
+            }
+        }
         return deserializeMessage(line)
     }
 
