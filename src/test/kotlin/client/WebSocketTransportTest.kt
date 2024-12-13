@@ -7,8 +7,6 @@ import org.junit.jupiter.api.Test
 import server.mcpWebSocket
 import server.mcpWebSocketTransport
 
-private const val PORT = 8080
-
 class WebSocketTransportTest : BaseTransportTest() {
     @Test
     fun `should start then close cleanly`() = testApplication {
