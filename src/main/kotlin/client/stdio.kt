@@ -85,12 +85,9 @@ class StdioClientTransport(
     override var onError: ((Throwable) -> Unit)? = null
     override var onMessage: (CoroutineScope.(JSONRPCMessage) -> Unit)? = null
 
-    override fun start(): Deferred<Unit> {
-        val deferred = CompletableDeferred<Unit>()
-
+    override suspend fun start() {
         if (started) {
-            deferred.completeExceptionally(IllegalStateException("StdioClientTransport already started!"))
-            return deferred
+            throw IllegalStateException("StdioClientTransport already started!")
         }
         started = true
 
@@ -109,15 +106,13 @@ class StdioClientTransport(
         val p = try {
             pb.start()
         } catch (e: Throwable) {
-            deferred.completeExceptionally(RuntimeException("Failed to start process", e))
-            return deferred
+            throw RuntimeException("Failed to start process", e)
         }
         process = p
 
         if (p.inputStream == null || p.outputStream == null) {
             p.destroy()
-            deferred.completeExceptionally(RuntimeException("Process input or output stream is null"))
-            return deferred
+            throw RuntimeException("Process input or output stream is null")
         }
 
         val inputStream = p.inputStream.bufferedReader(UTF_8)
@@ -159,49 +154,28 @@ class StdioClientTransport(
                 onClose?.invoke()
             }
 
-            deferred.complete(Unit)
-
             readJob.join()
             writeJob.cancelAndJoin()
             exitJob.join()
         }
-
-        return deferred
     }
 
-    override fun send(message: JSONRPCMessage): Deferred<Unit> {
-        val deferred = CompletableDeferred<Unit>()
+    override suspend fun send(message: JSONRPCMessage) {
+        CompletableDeferred<Unit>()
         if (process == null) {
-            deferred.completeExceptionally(IllegalStateException("Not connected"))
-            return deferred
+            throw IllegalStateException("Not connected")
         }
-        scope.launch {
-            try {
-                sendChannel.send(message)
-                deferred.complete(Unit)
-            } catch (e: Throwable) {
-                deferred.completeExceptionally(e)
-            }
-        }
-        return deferred
+
+        sendChannel.send(message)
     }
 
-    override fun close(): Deferred<Unit> {
-        val deferred = CompletableDeferred<Unit>()
-        scope.launch {
-            try {
-                process?.destroy()
-                process = null
-                readBuffer.clear()
-                sendChannel.close()
-                job?.cancelAndJoin()
-                onClose?.invoke()
-                deferred.complete(Unit)
-            } catch (e: Throwable) {
-                deferred.completeExceptionally(e)
-            }
-        }
-        return deferred
+    override suspend fun close() {
+        process?.destroy()
+        process = null
+        readBuffer.clear()
+        sendChannel.close()
+        job?.cancelAndJoin()
+        onClose?.invoke()
     }
 
     private fun processReadBuffer() {

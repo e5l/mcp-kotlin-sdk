@@ -2,7 +2,6 @@ package shared
 
 import JSONRPCMessage
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 
 /**
  * Describes the minimal contract for a MCP transport that a client or server can communicate over.
@@ -21,12 +20,12 @@ interface Transport {
     /**
      * Sends a JSON-RPC message (request or response).
      */
-    fun send(message: JSONRPCMessage): Deferred<Unit>
+    suspend fun send(message: JSONRPCMessage)
 
     /**
      * Closes the connection.
      */
-    fun close(): Deferred<Unit>
+    suspend fun close()
 
     /**
      * Callback for when the connection is closed for any reason.

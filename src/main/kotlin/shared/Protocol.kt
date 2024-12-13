@@ -334,8 +334,8 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
     /**
      * Closes the connection.
      */
-    fun close(): Deferred<Unit> {
-        return this.transport!!.close()
+    suspend fun close() {
+        this.transport!!.close()
     }
 
     /**
@@ -469,7 +469,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
     /**
      * Emits a notification, which is a one-way message that does not expect a response.
      */
-    fun notification(notification: SendNotificationT): Deferred<Unit> {
+    suspend fun notification(notification: SendNotificationT) {
         val transport = this.transport ?: error("Not connected")
 
         assertNotificationCapability(notification.method)
@@ -481,7 +481,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
         jsonrpc: "2.0",
         }**/
 
-        return transport.send(jsonrpcNotification)
+        transport.send(jsonrpcNotification)
     }
 
     /**
