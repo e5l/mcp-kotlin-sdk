@@ -139,9 +139,9 @@ class StdioClientTransport(
 //                        processReadBuffer()
                     }
                 } catch (e: Throwable) {
-                    when {
-                        e is IOException && e.message?.contains("Underlying source is closed") == true -> {}
-                        e is CancellationException -> {}
+                    when(e) { // TODO
+                        is IOException -> {}
+                        is CancellationException -> {}
                         else -> { onError?.invoke(e) }
                     }
                 } finally {
