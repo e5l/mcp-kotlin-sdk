@@ -38,10 +38,10 @@ import SUPPORTED_PROTOCOL_VERSIONS
 import ServerCapabilities
 import SubscribeRequest
 import UnsubscribeRequest
-import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.async
-import shared.*
+import shared.Protocol
+import shared.ProtocolOptions
+import shared.RequestOptions
+import shared.Transport
 
 class ClientOptions(
     /**
@@ -92,9 +92,8 @@ open class Client(
     }
 
 
-    override fun connect(transport: Transport): Deferred<Unit> {
-        return GlobalScope.async {
-            super.connect(transport).await()
+    override suspend fun connect(transport: Transport) {
+            super.connect(transport)
 
             try {
                 val result = request<InitializeResult>(
@@ -105,7 +104,7 @@ open class Client(
                             clientInfo = clientInfo
                         )
                     )
-                ).await()
+                )
 
                 if (result == null) {
                     throw IllegalStateException("Server sent invalid initialize result.")
@@ -125,7 +124,6 @@ open class Client(
                 close()
                 throw error
             }
-        }
     }
 
     /**
@@ -240,35 +238,35 @@ open class Client(
     }
 
     suspend fun ping(options: RequestOptions? = null) {
-        request<EmptyResult>(PingRequest(), options).await()
+        request<EmptyResult>(PingRequest(), options)
     }
 
     suspend fun complete(params: CompleteRequest.Params, options: RequestOptions? = null): CompleteResult? {
         return request<CompleteResult>(
             CompleteRequest(params),
             options
-        ).await()
+        )
     }
 
     suspend fun setLoggingLevel(level: LoggingLevel, options: RequestOptions? = null) {
         request<EmptyResult>(
             SetLevelRequest(SetLevelRequest.Params(level)),
             options
-        ).await()
+        )
     }
 
     suspend fun getPrompt(params: GetPromptRequest.Params, options: RequestOptions? = null): GetPromptResult? {
         return request<GetPromptResult>(
             GetPromptRequest(params),
             options
-        ).await()
+        )
     }
 
     suspend fun listPrompts(
         params: PaginatedRequest.Params? = null,
         options: RequestOptions? = null
     ): ListPromptsResult? {
-        return request<ListPromptsResult>(ListPromptsRequest(params = params), options).await()
+        return request<ListPromptsResult>(ListPromptsRequest(params = params), options)
     }
 
     suspend fun listResources(
@@ -278,7 +276,7 @@ open class Client(
         return request<ListResourcesResult>(
             ListResourcesRequest(params),
             options
-        ).await()
+        )
     }
 
     suspend fun listResourceTemplates(
@@ -288,28 +286,28 @@ open class Client(
         return request<ListResourceTemplatesResult>(
             ListResourceTemplatesRequest(params),
             options
-        ).await()
+        )
     }
 
     suspend fun readResource(params: ReadResourceRequest.Params, options: RequestOptions? = null): ReadResourceResult? {
         return request<ReadResourceResult>(
             ReadResourceRequest(params = params),
             options
-        ).await()
+        )
     }
 
     suspend fun subscribeResource(params: SubscribeRequest.Params, options: RequestOptions? = null) {
         request<EmptyResult>(
             SubscribeRequest(params = params),
             options
-        ).await()
+        )
     }
 
     suspend fun unsubscribeResource(params: UnsubscribeRequest.Params, options: RequestOptions? = null) {
         request<EmptyResult>(
             UnsubscribeRequest(params = params),
             options
-        ).await()
+        )
     }
 
     suspend fun callTool(
@@ -317,7 +315,7 @@ open class Client(
         compatibility: Boolean = false,
         options: RequestOptions? = null
     ): CallToolResultBase? {
-        val result: Deferred<CallToolResultBase> = if (compatibility) {
+        return if (compatibility) {
             request<CompatibilityCallToolResult>(
                 CallToolRequest(params = params),
                 options
@@ -328,18 +326,15 @@ open class Client(
                 options
             )
         }
-
-        return result.await()
     }
 
-    suspend fun listTools(params: PaginatedRequest.Params? = null, options: RequestOptions? = null): ListToolsResult? {
-        return request<ListToolsResult>(
+    suspend fun listTools(params: PaginatedRequest.Params? = null, options: RequestOptions? = null): ListToolsResult? =
+        request<ListToolsResult>(
             ListToolsRequest(params),
             options
-        ).await()
-    }
+        )
 
     suspend fun sendRootsListChanged() {
-        notification(RootsListChangedNotification()).await()
+        notification(RootsListChangedNotification())
     }
 }
