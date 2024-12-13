@@ -337,6 +337,10 @@ data class ServerCapabilities(
      */
     val experimental: JsonObject? = null,
     /**
+     * Present if the client supports sampling from an LLM.
+     */
+    val sampling: JsonObject? = null,
+    /**
      * Present if the server supports sending log messages to the client.
      */
     val logging: JsonObject? = null,
