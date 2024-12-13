@@ -20,10 +20,9 @@ private val REQUEST_MESSAGE_ID = AtomicLong()
 
 /**
  * A progress token, used to associate progress notifications with the original request.
- *
- * TODO String | Int
+ * Stores message ID.
  */
-typealias ProgressToken = String
+typealias ProgressToken = Long
 
 /**
  * An opaque token used to represent a cursor for pagination.
@@ -85,7 +84,7 @@ sealed interface Request {
      */
     @Transient
     val progressToken: ProgressToken?
-        get() = params?._meta?.get("progressToken")?.jsonPrimitive?.content
+        get() = params?._meta?.get("progressToken")?.jsonPrimitive?.content?.toLong()
 }
 
 @Serializable
