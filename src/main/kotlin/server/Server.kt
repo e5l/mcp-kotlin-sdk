@@ -13,10 +13,8 @@ import ListRootsRequest
 import ListRootsResult
 import LoggingMessageNotification
 import Method
-import Notification
 import PingRequest
 import PromptListChangedNotification
-import Request
 import ResourceListChangedNotification
 import ResourceUpdatedNotification
 import SUPPORTED_PROTOCOL_VERSIONS
@@ -54,7 +52,8 @@ data class ServerOptions(
  */
 open class Server(
     private val _serverInfo: Implementation,
-    options: ServerOptions
+    options: ServerOptions,
+    val onCloseCallback : (() -> Unit)? = null
 ) : Protocol<ServerRequest, ServerNotification, ServerResult>(options) {
 
     private var _clientCapabilities: ClientCapabilities? = null
@@ -75,6 +74,10 @@ open class Server(
             oninitialized?.invoke()
             CompletableDeferred<Unit>() // TODO()
         }
+    }
+
+    override fun onclose() {
+        onCloseCallback?.invoke()
     }
 
     override fun assertCapabilityForMethod(method: Method) {
