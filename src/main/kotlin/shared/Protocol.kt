@@ -117,7 +117,8 @@ val COMPLETED = CompletableDeferred(Unit).also { it.complete(Unit) }
 abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification, SendResultT : RequestResult>(
     @PublishedApi internal val _options: ProtocolOptions?
 ) {
-    internal var transport: Transport? = null
+    var transport: Transport? = null
+        private set
 
     private val requestHandlers: MutableMap<Method, (request: JSONRPCRequest, extra: RequestHandlerExtra) -> Deferred<SendResultT>> =
         mutableMapOf()
@@ -166,7 +167,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
         }
 
         setNotificationHandler<ProgressNotification>(Method.Defined.NotificationsProgress) { notification ->
-            this._onprogress(notification)
+            this.onProgress(notification)
             COMPLETED
         }
 
@@ -182,20 +183,20 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
      *
      * The Protocol object assumes ownership of the Transport, replacing any callbacks that have already been set, and expects that it is the only user of the Transport instance going forward.
      */
-    open fun connect(transport: Transport): Deferred<Unit> {
+    open suspend fun connect(transport: Transport) {
         transport.onClose = {
-            this._onclose()
+            this.onClose()
         }
 
         transport.onError = {
-            this._onerror(it)
+            this.onError(it)
         }
 
         transport.onMessage = { message ->
             when (message) {
-                is JSONRPCResponse -> _onresponse(message, null)
-                is JSONRPCRequest -> _onrequest(message)
-                is JSONRPCNotification -> _onnotification(message)
+                is JSONRPCResponse -> onResponse(message, null)
+                is JSONRPCRequest -> onRequest(message)
+                is JSONRPCNotification -> onNotification(message)
                 is JSONRPCError -> error(message.error.message)
             }
         }
@@ -203,24 +204,23 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
         return transport.start()
     }
 
-    private fun _onclose() {
-        val responseHandlers: MutableMap<Long, (JSONRPCResponse?, Exception?) -> Unit> = this.responseHandlers
-        this.responseHandlers = mutableMapOf()
-        this.progressHandlers.clear()
-        this.transport = null
-        this.onclose()
-
+    private fun onClose() {
         val error = McpError(ErrorCode.Defined.ConnectionClosed.code, "Connection closed")
         for (handler in responseHandlers.values) {
             handler(null, error)
         }
+
+        responseHandlers.clear()
+        progressHandlers.clear()
+        transport = null
+        onclose()
     }
 
-    private fun _onerror(error: Throwable) {
+    private fun onError(error: Throwable) {
         onerror(error)
     }
 
-    private fun _onnotification(notification: JSONRPCNotification) {
+    private fun onNotification(notification: JSONRPCNotification) {
         val function = notificationHandlers[notification.method]
         val property = fallbackNotificationHandler
         val handler = function ?: property
@@ -237,7 +237,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
 //        )
     }
 
-    private fun _onrequest(request: JSONRPCRequest) {
+    private fun onRequest(request: JSONRPCRequest) {
         val handler = requestHandlers[request.method] ?: this.fallbackRequestHandler
 
         if (handler === null) {
@@ -288,7 +288,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
         }
     }
 
-    private fun _onprogress(notification: ProgressNotification) {
+    private fun onProgress(notification: ProgressNotification) {
         val params = notification.params
         val progress = params.progress
         val total = params.total
@@ -296,7 +296,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
 
         val handler = this.progressHandlers[progressToken]
         if (handler == null) {
-            this._onerror(
+            this.onError(
                 Error(
                     "Received a progress notification for an unknown token: ${Json.encodeToString(notification)}",
                 ),
@@ -307,11 +307,11 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
         handler.invoke(Progress(progress, total))
     }
 
-    private fun _onresponse(response: JSONRPCResponse?, error: JSONRPCError?) {
+    private fun onResponse(response: JSONRPCResponse?, error: JSONRPCError?) {
         val messageId = response?.id
         val handler = this.responseHandlers[messageId]
         if (handler == null) {
-            this._onerror(Error("Received a response for an unknown message ID: ${Json.encodeToString(response)}"))
+            this.onError(Error("Received a response for an unknown message ID: ${Json.encodeToString(response)}"))
             return
         }
 
@@ -329,10 +329,6 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
 
             handler(null, error)
         }
-    }
-
-    fun get_transport(): Transport? {
-        return this.transport
     }
 
     /**
@@ -430,7 +426,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
             responseHandlers.remove(messageId)
             progressHandlers.remove(messageId)
 
-            val cancelResult = transport?.send(
+            val cancelResult = transport.send(
                 CancelledNotification(
                     params = CancelledNotification.Params(requestId = messageId, reason = reason.message ?: "Unknown")
                 )
