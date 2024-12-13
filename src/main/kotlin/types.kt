@@ -76,7 +76,7 @@ sealed interface Method {
     data class Custom(override val value: String) : Method
 }
 
-@Serializable
+@Serializable(with = RequestPolymorphicSerializer::class)
 sealed interface Request {
     val method: Method
     val params: WithMeta?
@@ -104,10 +104,14 @@ fun Request.toJSON(): JSONRPCRequest {
     )
 }
 
+fun JSONRPCRequest.fromJSON(): Request {
+    return McpJson.decodeFromJsonElement<Request>(params)
+}
+
 @Serializable
 open class CustomRequest(override val method: Method, override val params: WithMeta? = null) : Request
 
-@Serializable
+@Serializable(with = NotificationPolymorphicSerializer::class)
 sealed interface Notification {
     val method: Method
     val params: WithMeta?
@@ -121,11 +125,12 @@ fun Notification.toJSON(): JSONRPCNotification {
     )
 }
 
-@Serializable
-sealed interface RequestResult : WithMeta
+fun JSONRPCNotification.fromJSON(): Notification? {
+    return params?.let { McpJson.decodeFromJsonElement<Notification>(it) }
+}
 
 @Serializable
-abstract class CustomResult : RequestResult
+sealed interface RequestResult : WithMeta
 
 @Serializable
 object EmptyRequestResult : RequestResult {
@@ -137,7 +142,7 @@ object EmptyRequestResult : RequestResult {
  */
 typealias RequestId = Long
 
-@Serializable
+@Serializable(with = JSONRPCMessagePolymorphicSerializer::class)
 sealed interface JSONRPCMessage
 
 /**
@@ -206,7 +211,7 @@ class JSONRPCError(
     val code: ErrorCode,
     val message: String,
     val data: JsonObject?,
-)
+) : JSONRPCMessage
 
 /* Empty result */
 /**
@@ -962,7 +967,8 @@ class ListToolsResult(
 /**
  * The server's response to a tool call.
  */
-interface CallToolResultBase : ServerResult {
+@Serializable
+sealed interface CallToolResultBase : ServerResult {
     val content: PromptMessageContent
     val isError: Boolean? get() = false
 }

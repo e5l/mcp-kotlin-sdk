@@ -15,7 +15,9 @@ import ProgressNotification
 import Request
 import RequestId
 import RequestResult
+import fromJSON
 import kotlinx.coroutines.*
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.ClassDiscriminatorMode
 import kotlinx.serialization.json.Json
@@ -25,6 +27,8 @@ import kotlinx.serialization.json.encodeToJsonElement
 import toJSON
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+
+const val IMPLEMENTATION_NAME = "mcp-ktor"
 
 /**
  * Callback for progress notifications.
@@ -43,6 +47,7 @@ class AbortSignal {
     var aborted: Boolean = false
 }
 
+@OptIn(ExperimentalSerializationApi::class)
 internal val McpJson by lazy {
     Json {
         ignoreUnknownKeys = true
@@ -208,6 +213,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
                 is JSONRPCResponse -> onResponse(message, null)
                 is JSONRPCRequest -> onRequest(message)
                 is JSONRPCNotification -> onNotification(message)
+                is JSONRPCError -> onResponse(null, message)
             }
         }
 
@@ -487,7 +493,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
         assertRequestHandlerCapability(method)
 
         requestHandlers[method.value] = { a, b ->
-            block(a as T, b)
+            block(a.fromJSON() as T, b)
         }
     }
 
@@ -505,7 +511,10 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
      */
     fun <T : Notification> setNotificationHandler(method: Method, handler: (notification: T) -> Deferred<Unit>) {
         this.notificationHandlers[method.value] = {
-            handler(it as T)
+            val decoded = it.fromJSON()
+                ?: error("Can not decode notification: ${it.params.toString()}")
+
+            handler(decoded as T)
         }
     }
 
