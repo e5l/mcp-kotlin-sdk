@@ -14,33 +14,42 @@ import toJSON
 import java.io.*
 
 class StdioServerTransportTest {
-    private lateinit var inputPipe: PipedInputStream
-    private lateinit var outputPipe: PipedOutputStream
-    private lateinit var input: BufferedInputStream
-    private lateinit var output: PrintStream
+    private lateinit var input: PipedInputStream
+    private lateinit var inputWriter: PipedOutputStream
     private lateinit var outputBuffer: ReadBuffer
+    private lateinit var output: ByteArrayOutputStream
+
+    // We'll store the wrapped streams that meet the constructor requirements
+    private lateinit var bufferedInput: BufferedInputStream
+    private lateinit var printOutput: PrintStream
 
     @BeforeEach
     fun setUp() {
-        // Piped streams simulate a readable/writable pair like Node's Readable/Writable.
-        val pipedOutput = PipedOutputStream()
-        inputPipe = PipedInputStream(pipedOutput)
+        // Simulate an input stream that we can push data into using inputWriter.
+        input = PipedInputStream()
+        inputWriter = PipedOutputStream(input)
 
-        val pipedInput = PipedOutputStream()
-        val pipedInputForRead = PipedInputStream(pipedInput)
-        outputPipe = pipedInput
-        input = BufferedInputStream(inputPipe)
-
-        // We'll capture output in a buffer for inspection if needed.
-        val outputBaos = ByteArrayOutputStream()
-        output = PrintStream(BufferedOutputStream(pipedInput), true)
         outputBuffer = ReadBuffer()
+
+        // A custom ByteArrayOutputStream that appends all written data into outputBuffer
+        output = object : ByteArrayOutputStream() {
+            override fun write(b: ByteArray, off: Int, len: Int) {
+                super.write(b, off, len)
+                outputBuffer.append(b.copyOfRange(off, off + len))
+            }
+        }
+
+        // Wrap input in BufferedInputStream
+        bufferedInput = BufferedInputStream(input)
+
+        // Wrap output in PrintStream
+        printOutput = PrintStream(output, true)
     }
 
     @Test
     fun `should start then close cleanly`() {
         runBlocking {
-            val server = StdioServerTransport(input, output)
+            val server = StdioServerTransport(bufferedInput, printOutput)
             server.onError = { error ->
                 throw error
             }
@@ -61,7 +70,7 @@ class StdioServerTransportTest {
     @Test
     fun `should not read until started`() {
         runBlocking {
-            val server = StdioServerTransport(input, output)
+            val server = StdioServerTransport(bufferedInput, printOutput)
             server.onError = { error ->
                 throw error
             }
@@ -76,10 +85,10 @@ class StdioServerTransportTest {
 
             val message = PingRequest().toJSON()
 
-            // Push message before server started
+            // Push message before the server started
             val serialized = serializeMessage(message)
-            outputPipe.write(serialized)
-            outputPipe.flush()
+            inputWriter.write(serialized)
+            inputWriter.flush()
 
             assertFalse(didRead, "Should not have read message before start")
 
@@ -92,7 +101,7 @@ class StdioServerTransportTest {
     @Test
     fun `should read multiple messages`() {
         runBlocking {
-            val server = StdioServerTransport(input, output)
+            val server = StdioServerTransport(bufferedInput, printOutput)
             server.onError = { error ->
                 throw error
             }
@@ -114,9 +123,9 @@ class StdioServerTransportTest {
 
             // Push both messages before starting the server
             for (m in messages) {
-                outputPipe.write(serializeMessage(m))
+                inputWriter.write(serializeMessage(m))
             }
-            outputPipe.flush()
+            inputWriter.flush()
 
             server.start()
             finished.await()

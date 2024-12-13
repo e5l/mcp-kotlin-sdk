@@ -104,7 +104,7 @@ class StdioServerTransport(
         started = false
 
         // Cancel reading job and close channel
-        readingJob?.cancelAndJoin()
+        readingJob?.cancel() // ToDO("was cancel and join")
         readChannel.close()
         readBuffer.clear()
 
