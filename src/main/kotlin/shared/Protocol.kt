@@ -43,7 +43,7 @@ class AbortSignal {
 /**
  * Additional initialization options.
  */
-data class ProtocolOptions(
+open class ProtocolOptions(
     /**
      * Whether to restrict emitted requests to only those that the remote side has indicated
      * that they can handle, through their advertised capabilities.
@@ -82,7 +82,7 @@ data class RequestOptions(
      * Can be used to cancel an in-flight request.
      * This will cause an AbortError to be raised from request().
      */
-    val signal: AbortSignal,
+    val signal: AbortSignal = AbortSignal(),
 
     /**
      * A timeout for this request. If exceeded, an McpError with code `RequestTimeout`
@@ -110,15 +110,13 @@ class AbortController {
     fun abort(reason: String? = null) {}
 }
 
-class ResultSchema
-
 val COMPLETED = CompletableDeferred(Unit).also { it.complete(Unit) }
 
 /**
  * Implements MCP protocol framing on top of a pluggable transport, including
  * features like request/response linking, notifications, and progress.
  */
-abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification, SendResultT : ResultSchema>(
+abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification, SendResultT : RequestResult>(
     @PublishedApi internal val _options: ProtocolOptions?
 ) {
 //    @PublishedApi
@@ -383,10 +381,10 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
      *
      * Do not use this method to emit notifications! Use notification() instead.
      */
-    fun request(
+    fun <T: RequestResult> request(
         request: SendRequestT,
-        options: RequestOptions,
-    ): Deferred<RequestResult> {
+        options: RequestOptions = RequestOptions(),
+    ): Deferred<T> {
         val result = CompletableDeferred<RequestResult>()
         val transport = this@Protocol._transport ?: throw Error("Not connected")
         val options = this@Protocol._options
