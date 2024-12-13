@@ -133,13 +133,13 @@ fun JSONRPCNotification.fromJSON(): Notification {
     return McpJson.decodeFromJsonElement<Notification>(params)
 }
 
-@Serializable
+@Serializable(with = RequestResultPolymorphicSerializer::class)
 sealed interface RequestResult : WithMeta
 
 @Serializable
-object EmptyRequestResult : RequestResult {
-    override val _meta: JsonObject = EmptyJsonObject
-}
+data class EmptyRequestResult(
+    override val _meta: JsonObject = EmptyJsonObject,
+) : ServerResult, ClientResult
 
 /**
  * A uniquely identifying ID for a request in JSON-RPC.
@@ -217,15 +217,6 @@ class JSONRPCError(
     val data: JsonObject = EmptyJsonObject,
 ) : JSONRPCMessage
 
-/* Empty result */
-/**
- * A response that indicates success but carries no data.
- */
-@Serializable
-object EmptyResult : ClientResult, ServerResult {
-    override val _meta: JsonObject = EmptyJsonObject
-}
-
 /* Cancellation */
 /**
  * This notification can be sent by either side to indicate that it is cancelling a previously-issued request.
@@ -301,7 +292,7 @@ interface ClientRequest : Request
 @Serializable(with = ClientNotificationPolymorphicSerializer::class)
 sealed interface ClientNotification : Notification
 
-@Serializable
+@Serializable(with = ClientResultPolymorphicSerializer::class)
 sealed interface ClientResult : RequestResult
 
 @Serializable(with = ServerRequestPolymorphicSerializer::class)
@@ -310,7 +301,7 @@ sealed interface ServerRequest : Request
 @Serializable(with = ServerNotificationPolymorphicSerializer::class)
 sealed interface ServerNotification : Notification
 
-@Serializable
+@Serializable(with = ServerResultPolymorphicSerializer::class)
 sealed interface ServerResult : RequestResult
 
 @Serializable
