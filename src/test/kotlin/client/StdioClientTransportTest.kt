@@ -86,6 +86,7 @@ class StdioClientTransportTest {
         assertEquals(messages, readMessages, "Assert messages received")
 
         client.close()
+        process.waitFor()
         process.destroy()
     }
 }
