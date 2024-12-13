@@ -6,6 +6,7 @@ import io.ktor.server.application.*
 import io.ktor.server.cio.*
 import io.ktor.server.engine.*
 import io.ktor.server.routing.*
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import server.mcpSse
@@ -39,6 +40,8 @@ class SseTransportTest : BaseTransportTest() {
 
     @Test
     fun `should read messages`() = runTest {
+        val clientFinished = CompletableDeferred<Unit>()
+
         val server = embeddedServer(CIO, port = PORT) {
             install(io.ktor.server.sse.SSE)
             routing {
@@ -46,6 +49,7 @@ class SseTransportTest : BaseTransportTest() {
                     onMessage = {
                         send(it)
                     }
+                    clientFinished.await()
                 }
             }
         }.start(wait = false)
@@ -60,6 +64,7 @@ class SseTransportTest : BaseTransportTest() {
         }
 
         testClientRead(client)
+        clientFinished.complete(Unit)
 
         server.stop()
     }

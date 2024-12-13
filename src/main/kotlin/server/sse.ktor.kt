@@ -52,7 +52,10 @@ fun Route.mcpSseTransport(
     handler: suspend SseMcpServerTransport.() -> Unit = {},
 ) {
     sse {
-        handler(createMcpTransport(this, incomingPath))
+        val transport = createMcpTransport(this, incomingPath)
+        transport.start()
+        handler(transport)
+        transport.close()
     }
 
     setupPostRoute(incomingPath, incomingHandler)
@@ -65,7 +68,10 @@ fun Route.mcpSseTransport(
     handler: suspend SseMcpServerTransport.() -> Unit = {},
 ) {
     sse(path) {
-        handler(createMcpTransport(this, incomingPath))
+        val transport = createMcpTransport(this, incomingPath)
+        transport.start()
+        handler(transport)
+        transport.close()
     }
 
     setupPostRoute(incomingPath, incomingHandler)
