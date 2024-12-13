@@ -16,7 +16,7 @@ interface Transport {
      * NOTE: This method should not be called explicitly when using Client, Server, or Protocol classes,
      * as they will implicitly call start().
      */
-    fun start(): Deferred<Unit>
+    suspend fun start()
 
     /**
      * Sends a JSON-RPC message (request or response).
