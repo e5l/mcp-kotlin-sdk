@@ -3,8 +3,8 @@ package client
 import Implementation
 import ListToolsResult
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Test
 import java.net.Socket
-import kotlin.test.Test
 
 class ClientIntegrationTest {
 

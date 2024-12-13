@@ -39,12 +39,46 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation("io.mockk:mockk:1.13.13")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-debug:1.9.0")
+    testImplementation("io.ktor:ktor-server-test-host:3.0.2")
+    testImplementation("io.ktor:ktor-server-cio:3.0.2")
+    testImplementation("org.jetbrains.kotlin:kotlin-test:2.0.21")
 }
 
 tasks.test {
     useJUnitPlatform()
 }
 
+abstract class GenerateLibVersionTask @Inject constructor(
+    @get:Input val libVersion: String,
+    @get:OutputDirectory val sourcesDir: File
+) : DefaultTask() {
+    @TaskAction
+    fun generate() {
+        val sourceFile = File(sourcesDir, "LibVersion.kt")
+
+        sourceFile.writeText(
+            """
+            package shared
+
+            const val LIB_VERSION = "$libVersion"
+            
+            """.trimIndent()
+        )
+    }
+}
+
+val sourcesDir = File(project.layout.buildDirectory.asFile.get(), "generated-sources/libVersion")
+
+val generateLibVersionTask =
+    tasks.register<GenerateLibVersionTask>("generateLibVersion", version.toString(), sourcesDir)
+
 kotlin {
     jvmToolchain(21)
+
+    sourceSets {
+        main {
+            kotlin.srcDir(generateLibVersionTask.map { it.sourcesDir })
+        }
+    }
 }

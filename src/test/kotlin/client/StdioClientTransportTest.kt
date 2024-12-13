@@ -5,6 +5,7 @@ import JSONRPCMessage
 import PingRequest
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Test
 import toJSON
 import kotlin.test.*
 

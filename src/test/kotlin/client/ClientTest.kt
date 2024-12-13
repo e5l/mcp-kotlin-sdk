@@ -17,8 +17,8 @@ import ServerCapabilities
 import TextContent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonObject
+import org.junit.jupiter.api.Test
 import shared.Transport
-import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue

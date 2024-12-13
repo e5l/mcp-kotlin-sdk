@@ -1,75 +1,77 @@
 package client
 
 import JSONRPCMessage
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.apache.Apache
-import io.ktor.client.plugins.sse.ClientSSESession
-import io.ktor.client.plugins.sse.SSE
-import io.ktor.client.plugins.sse.sseSession
-import io.ktor.client.request.HttpRequestBuilder
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.client.statement.bodyAsText
-import io.ktor.http.Url
-import io.ktor.http.isSuccess
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
+import io.ktor.client.*
+import io.ktor.client.plugins.sse.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
+import kotlinx.coroutines.*
 import kotlinx.serialization.encodeToString
 import shared.AbortController
 import shared.McpJson
 import shared.Transport
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.coroutines.CoroutineContext
 import kotlin.properties.Delegates
 import kotlin.time.Duration
+
+fun HttpClient.mcpSseTransport(
+    urlString: String? = null,
+    reconnectionTime: Duration? = null,
+    requestBuilder: HttpRequestBuilder.() -> Unit = {},
+) = SseMcpClientTransport(this, urlString, reconnectionTime, requestBuilder)
 
 /**
  * Client transport for SSE: this will connect to a server using Server-Sent Events for receiving
  * messages and make separate POST requests for sending messages.
  */
-class SSEClientTransport(
-    private val url: Url,
+class SseMcpClientTransport(
+    private val client: HttpClient,
+    private val urlString: String?,
     private val reconnectionTime: Duration? = null,
     private val requestBuilder: HttpRequestBuilder.() -> Unit = {},
 ) : Transport {
-    private val jsonRpcContext: CoroutineContext = Dispatchers.IO
-    private val scope = CoroutineScope(jsonRpcContext + SupervisorJob())
-
-    private val client by lazy {
-        HttpClient(Apache) {
-            install(SSE)
-        }
+    private val scope by lazy {
+        CoroutineScope(session.coroutineContext + SupervisorJob())
     }
 
     private val initialized = AtomicBoolean(false)
     private var session: ClientSSESession by Delegates.notNull()
-    private val endpoint = CompletableDeferred<Url>()
+    private val endpoint = CompletableDeferred<String>()
     private var _abortController: AbortController? = null
 
     override var onClose: (() -> Unit)? = null
     override var onError: ((Throwable) -> Unit)? = null
     override var onMessage: (suspend ((JSONRPCMessage) -> Unit))? = null
 
+    var job: Job? = null
+
+    val baseUrl by lazy {
+        session.call.request.url.toString().removeSuffix("/")
+    }
+
     override suspend fun start() {
         if (!initialized.compareAndSet(false, true)) {
             error(
-                "SSEClientTransport already started! If using Client class, note that connect() calls start() automatically.",
+                "SSEClientTransport already started! " +
+                        "If using Client class, note that connect() calls start() automatically.",
             )
         }
 
         this._abortController = AbortController()
 
-        session = client.sseSession(
-            urlString = url.toString(),
+        session = urlString?.let {
+            client.sseSession(
+                urlString = it,
+                reconnectionTime = reconnectionTime,
+                block = requestBuilder,
+            )
+        } ?: client.sseSession(
             reconnectionTime = reconnectionTime,
             block = requestBuilder,
         )
 
-        scope.launch {
+        job = scope.launch(CoroutineName("SseMcpClientTransport.collect#${hashCode()}")) {
             session.incoming.collect { event ->
                 when (event.event) {
                     "error" -> {
@@ -86,12 +88,10 @@ class SSEClientTransport(
                         try {
                             val eventData = event.data ?: ""
 
-                            val maybeEndpoint = Url("$url/$eventData")
-                            if (maybeEndpoint.origin !== url.origin) {
-                                error("Endpoint origin does not match connection origin: ${maybeEndpoint.origin}")
-                            }
+                            // check url correctness
+                            val maybeEndpoint = Url("$baseUrl/$eventData")
 
-                            endpoint.complete(maybeEndpoint)
+                            endpoint.complete(maybeEndpoint.toString())
                         } catch (e: Exception) {
                             onError?.invoke(e)
                             close()
@@ -114,24 +114,15 @@ class SSEClientTransport(
         endpoint.await()
     }
 
-    override suspend fun close() {
-        if (!initialized.get()) {
-            error("SSEClientTransport is not initialized!")
-        }
-
-        _abortController?.abort()
-        session.call.cancel()
-        onClose?.invoke()
-    }
-
+    @OptIn(ExperimentalCoroutinesApi::class)
     override suspend fun send(message: JSONRPCMessage) {
         if (!endpoint.isCompleted) {
             error("Not connected")
         }
 
         try {
-            val response = client.post {
-                headers.append("Content-Type", "application/json")
+            val response = client.post(endpoint.getCompleted()) {
+                headers.append(HttpHeaders.ContentType, ContentType.Application.Json)
                 setBody(McpJson.encodeToString(message))
             }
 
@@ -144,6 +135,15 @@ class SSEClientTransport(
             throw e
         }
     }
-}
 
-private val Url.origin get(): String = "$protocol://$host:$port"
+    override suspend fun close() {
+        if (!initialized.get()) {
+            error("SSEClientTransport is not initialized!")
+        }
+
+        _abortController?.abort()
+        session.cancel()
+        onClose?.invoke()
+        job?.cancelAndJoin()
+    }
+}
