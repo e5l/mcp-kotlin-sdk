@@ -34,11 +34,11 @@ sealed interface WithMeta {
      * This result property is reserved by the protocol to allow clients and servers to attach additional metadata to their responses.
      */
     @Suppress("PropertyName")
-    val _meta: JsonObject?
+    val _meta: JsonObject
 }
 
 @Serializable
-class CustomMeta(override val _meta: JsonObject) : WithMeta
+class CustomMeta(override val _meta: JsonObject = JsonObject(emptyMap())) : WithMeta
 
 @Serializable(with = RequestMethodSerializer::class)
 sealed interface Method {
@@ -134,7 +134,7 @@ sealed interface RequestResult : WithMeta
 
 @Serializable
 object EmptyRequestResult : RequestResult {
-    override val _meta: JsonObject? = null
+    override val _meta: JsonObject = JsonObject(emptyMap())
 }
 
 /**
@@ -219,7 +219,7 @@ class JSONRPCError(
  */
 @Serializable
 object EmptyResult : ClientResult, ServerResult {
-    override val _meta: JsonObject? = null
+    override val _meta: JsonObject = JsonObject(emptyMap())
 }
 
 /* Cancellation */
@@ -250,7 +250,7 @@ data class CancelledNotification(
          * An optional string describing the reason for the cancellation. This MAY be logged or presented to the user.
          */
         val reason: String?,
-        override val _meta: JsonObject? = null,
+        override val _meta: JsonObject = JsonObject(emptyMap()),
     ) : WithMeta
 }
 
@@ -332,7 +332,7 @@ data class InitializeRequest(
         val protocolVersion: String,
         val capabilities: ClientCapabilities,
         val clientInfo: Implementation,
-        override val _meta: JsonObject? = null,
+        override val _meta: JsonObject = JsonObject(emptyMap()),
     ) : WithMeta
 }
 
@@ -403,7 +403,7 @@ data class InitializeResult(
     val protocolVersion: String = LATEST_PROTOCOL_VERSION,
     val capabilities: ServerCapabilities = ServerCapabilities(),
     val serverInfo: Implementation,
-    override val _meta: JsonObject? = null,
+    override val _meta: JsonObject = JsonObject(emptyMap()),
 ) : ServerResult
 
 /**
@@ -469,7 +469,7 @@ data class ProgressNotification(
     @Serializable
     class Params(
         val progressToken: ProgressToken,
-        override val _meta: JsonObject?,
+        override val _meta: JsonObject = JsonObject(emptyMap()),
         override val progress: Int,
         override val total: Double?,
     ) : WithMeta, ProgressBase
@@ -487,7 +487,7 @@ sealed interface PaginatedRequest : Request {
          * If provided, the server should return results starting after this cursor.
          */
         val cursor: Cursor?,
-        override val _meta: JsonObject? = null,
+        override val _meta: JsonObject = JsonObject(emptyMap()),
     ) : WithMeta
 }
 
@@ -608,7 +608,7 @@ data class ListResourcesRequest(
 class ListResourcesResult(
     val resources: Array<Resource>,
     override val nextCursor: Cursor?,
-    override val _meta: JsonObject? = null,
+    override val _meta: JsonObject = JsonObject(emptyMap()),
 ) : ServerResult, PaginatedResult
 
 /**
@@ -628,7 +628,7 @@ data class ListResourceTemplatesRequest(
 class ListResourceTemplatesResult(
     val resourceTemplates: Array<ResourceTemplate>,
     override val nextCursor: Cursor?,
-    override val _meta: JsonObject? = null,
+    override val _meta: JsonObject = JsonObject(emptyMap()),
 ) : ServerResult, PaginatedResult
 
 /**
@@ -646,7 +646,7 @@ data class ReadResourceRequest(
          * The URI of the resource to read. The URI can use any protocol; it is up to the server how to interpret it.
          */
         val uri: String,
-        override val _meta: JsonObject? = null,
+        override val _meta: JsonObject = JsonObject(emptyMap()),
     ) : WithMeta
 }
 
@@ -656,7 +656,7 @@ data class ReadResourceRequest(
 @Serializable
 class ReadResourceResult(
     val contents: Array<ResourceContents>,
-    override val _meta: JsonObject? = null,
+    override val _meta: JsonObject = JsonObject(emptyMap()),
 ) : ServerResult
 
 /**
@@ -684,7 +684,7 @@ data class SubscribeRequest(
          * The URI of the resource to subscribe to. The URI can use any protocol; it is up to the server how to interpret it.
          */
         val uri: String,
-        override val _meta: JsonObject? = null,
+        override val _meta: JsonObject = JsonObject(emptyMap()),
     ) : WithMeta
 }
 
@@ -703,7 +703,7 @@ data class UnsubscribeRequest(
          * The URI of the resource to unsubscribe from.
          */
         val uri: String,
-        override val _meta: JsonObject? = null,
+        override val _meta: JsonObject = JsonObject(emptyMap()),
     ) : WithMeta
 }
 
@@ -722,7 +722,7 @@ data class ResourceUpdatedNotification(
          * The URI of the resource that has been updated. This might be a sub-resource of the one that the client actually subscribed to.
          */
         val uri: String,
-        override val _meta: JsonObject? = null,
+        override val _meta: JsonObject = JsonObject(emptyMap()),
     ) : WithMeta
 }
 
@@ -782,7 +782,7 @@ data class ListPromptsRequest(
 class ListPromptsResult(
     val prompts: Array<Prompt>,
     override val nextCursor: Cursor?,
-    override val _meta: JsonObject? = null,
+    override val _meta: JsonObject = JsonObject(emptyMap()),
 ) : ServerResult, PaginatedResult
 
 /**
@@ -806,7 +806,7 @@ data class GetPromptRequest(
          */
         val arguments: Map<String, String>?,
 
-        override val _meta: JsonObject? = null,
+        override val _meta: JsonObject = JsonObject(emptyMap()),
     ) : WithMeta
 }
 
@@ -904,7 +904,7 @@ class GetPromptResult(
      */
     val description: String?,
     val messages: Array<PromptMessage>,
-    override val _meta: JsonObject? = null,
+    override val _meta: JsonObject = JsonObject(emptyMap()),
 ) : ServerResult
 
 /**
@@ -961,7 +961,7 @@ data class ListToolsRequest(
 class ListToolsResult(
     val tools: Array<Tool>,
     override val nextCursor: Cursor?,
-    override val _meta: JsonObject? = null,
+    override val _meta: JsonObject = JsonObject(emptyMap()),
 ) : ServerResult, PaginatedResult
 
 /**
@@ -980,7 +980,7 @@ sealed interface CallToolResultBase : ServerResult {
 data class CallToolResult(
     override val content: PromptMessageContent,
     override val isError: Boolean? = false,
-    override val _meta: JsonObject? = null,
+    override val _meta: JsonObject = JsonObject(emptyMap()),
 ) : CallToolResultBase
 
 /**
@@ -990,7 +990,7 @@ data class CallToolResult(
 data class CompatibilityCallToolResult(
     override val content: PromptMessageContent,
     override val isError: Boolean? = false,
-    override val _meta: JsonObject? = null,
+    override val _meta: JsonObject = JsonObject(emptyMap()),
     val toolResult: JsonObject? = null,
 ) : CallToolResultBase
 
@@ -1007,7 +1007,7 @@ data class CallToolRequest(
     data class Params(
         val name: String,
         val arguments: Map<String, JsonObject?>?,
-        override val _meta: JsonObject? = null,
+        override val _meta: JsonObject = JsonObject(emptyMap()),
     ) : WithMeta
 }
 
@@ -1061,7 +1061,7 @@ data class LoggingMessageNotification(
              * The level of logging that the client wants to receive from the server. The server should send all logs at this level and higher (i.e., more severe) to the client as notifications/logging/message.
              */
             val level: LoggingLevel,
-            override val _meta: JsonObject? = null,
+            override val _meta: JsonObject = JsonObject(emptyMap()),
         ) : WithMeta
     }
 
@@ -1083,7 +1083,7 @@ data class LoggingMessageNotification(
          * The data to be logged, such as a string message or an object. Any JSON serializable type is allowed here.
          */
         val data: JsonObject?,
-        override val _meta: JsonObject? = null,
+        override val _meta: JsonObject = JsonObject(emptyMap()),
     ) : WithMeta
 }
 
@@ -1180,7 +1180,7 @@ data class CreateMessageRequest(
          * The server's preferences for which model to select.
          */
         val modelPreferences: ModelPreferences?,
-        override val _meta: JsonObject? = null,
+        override val _meta: JsonObject = JsonObject(emptyMap()),
     ) : WithMeta {
         @Serializable
         enum class IncludeContext { none, thisServer, allServers }
@@ -1226,7 +1226,7 @@ data class CreateMessageResult(
     val stopReason: StopReason? = null,
     val role: Role,
     val content: PromptMessageContentTextOrImage,
-    override val _meta: JsonObject? = null,
+    override val _meta: JsonObject = JsonObject(emptyMap()),
 ) : ClientResult
 
 /* Autocomplete */
@@ -1293,7 +1293,7 @@ data class CompleteRequest(
          * The argument's information
          */
         val argument: Argument,
-        override val _meta: JsonObject? = null,
+        override val _meta: JsonObject = JsonObject(emptyMap()),
     ) : WithMeta {
         @Serializable
         data class Argument(
@@ -1315,7 +1315,7 @@ data class CompleteRequest(
 @Serializable
 data class CompleteResult(
     val completion: Completion,
-    override val _meta: JsonObject? = null,
+    override val _meta: JsonObject = JsonObject(emptyMap()),
 ) : ServerResult {
     @Suppress("CanBeParameter")
     @Serializable
@@ -1380,7 +1380,7 @@ data class ListRootsRequest(
 @Serializable
 class ListRootsResult(
     val roots: Array<Root>,
-    override val _meta: JsonObject? = null,
+    override val _meta: JsonObject = JsonObject(emptyMap()),
 ) : ClientResult
 
 /**
