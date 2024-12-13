@@ -21,6 +21,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.encodeToJsonElement
+import toJSON
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -386,8 +387,8 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
 
         options?.signal?.throwIfAborted()
 
-        check(request is JSONRPCRequest)
-        val messageId = request.id
+        val message = request.toJSON()
+        val messageId = message.id
 
         if (options?.onProgress != null) {
             progressHandlers[messageId] = options.onProgress
@@ -436,7 +437,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
         val timeout = options?.timeout ?: DEFAULT_REQUEST_TIMEOUT
         try {
             withTimeout(timeout) {
-                this@Protocol.transport!!.send(request)
+                this@Protocol.transport!!.send(message)
             }
             return result.await() as T
         } catch (cause: TimeoutCancellationException) {

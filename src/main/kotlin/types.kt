@@ -142,10 +142,10 @@ sealed interface JSONRPCMessage
  */
 @Serializable
 data class JSONRPCRequest(
+    val id: RequestId = REQUEST_MESSAGE_ID.incrementAndGet(),
     val method: String,
     val params: JsonElement,
     val jsonrpc: String = JSONRPC_VERSION,
-    val id: RequestId = REQUEST_MESSAGE_ID.incrementAndGet(),
 ) : JSONRPCMessage
 
 /**
