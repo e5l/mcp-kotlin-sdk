@@ -7,7 +7,6 @@ import CustomMeta
 import CustomRequest
 import CustomResult
 import Implementation
-import InitializeRequest
 import InitializeResult
 import JSONRPCMessage
 import JSONRPCRequest
@@ -21,10 +20,8 @@ import ServerCapabilities
 import TextContent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.encodeToJsonElement
 import shared.Transport
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -188,17 +185,17 @@ class ClientTest {
 
     @Test
     fun `should respect server capabilities`() = runTest {
-        TODO()
+        TODO("Server")
     }
 
     @Test
     fun `should respect client notification capabilities`() {
-        TODO()
+        TODO("Server")
     }
 
     @Test
     fun `should respect server notification capabilities`() {
-        TODO()
+        TODO("Server")
     }
 
     @Test
@@ -230,197 +227,13 @@ class ClientTest {
         }
     }
 
-    @Serializable
-    class GetWeatherRequest(val city: String) : CustomRequest(
-        Method.Custom("weather/get"),
-        CustomMeta(JsonObject(mutableMapOf("city" to JsonPrimitive(city))))
-    ), WeatherRequest
-
-    @Serializable
-    class GetForecastRequest(val city: String, val days: Int) : CustomRequest(
-        Method.Custom("weather/forecast"),
-        CustomMeta(JsonObject(mutableMapOf("city" to JsonPrimitive(city), "days" to JsonPrimitive(days))))
-    ), WeatherRequest
-
-    @Serializable
-    enum class Severity {
-        warning, watch
+    @Test
+    fun `should handle client cancelling a request`() = runTest {
+        TODO("Server")
     }
 
-    @Serializable
-    class WeatherForecastNotification(val severity: Severity, val message: String) : CustomRequest(
-        Method.Custom("weather/alert"),
-        CustomMeta(
-            JsonObject(
-                mutableMapOf(
-                    "severity" to JsonPrimitive(severity.name),
-                    "message" to JsonPrimitive(message)
-                )
-            )
-        )
-    ), WeatherNotification
-
-    @Serializable
-    class WeatherResult(val temperature: Double, val conditions: String) : CustomResult() {
-        override val _meta: JsonObject? = null
-    }
-
-    @Serializable
-    sealed interface WeatherRequest
-
-    @Serializable
-    sealed interface WeatherNotification
-    //    const WeatherNotificationSchema = WeatherForecastNotificationSchema;
-
-
-    fun `should typecheck`() {
+    @Test
+    fun `should handle request timeout`() {
+        TODO("Server")
     }
 }
-//    // Create a typed Client for weather data
-//    const weatherClient = new Client<
-//            WeatherRequest,
-//            WeatherNotification,
-//            WeatherResult
-//            >(
-//        {
-//            name: "WeatherClient",
-//            version: "1.0.0",
-//        },
-//        {
-//            capabilities: {
-//            sampling: {},
-//        },
-//        },
-//    );
-//
-//    // Typecheck that only valid weather requests/notifications/results are allowed
-//    false &&
-//            weatherClient.request(
-//                {
-//                    method: "weather/get",
-//                    params: {
-//                    city: "Seattle",
-//                },
-//                },
-//                WeatherResultSchema,
-//            );
-//
-//    false &&
-//            weatherClient.notification({
-//                method: "weather/alert",
-//                params: {
-//                severity: "warning",
-//                message: "Storm approaching",
-//            },
-//            });
-//});
-//
-//test("should handle client cancelling a request", async () => {
-//    const server = new Server(
-//        {
-//            name: "test server",
-//            version: "1.0",
-//        },
-//        {
-//            capabilities: {
-//            resources: {},
-//        },
-//        },
-//    );
-//
-//    // Set up server to delay responding to listResources
-//    server.setRequestHandler(
-//        ListResourcesRequestSchema,
-//        async (request, extra) => {
-//        await new Promise((resolve) => setTimeout(resolve, 1000));
-//        return {
-//            resources: [],
-//        };
-//    },
-//    );
-//
-//    const [clientTransport, serverTransport] =
-//        InMemoryTransport.createLinkedPair();
-//
-//    const client = new Client(
-//        {
-//            name: "test client",
-//            version: "1.0",
-//        },
-//        {
-//            capabilities: {},
-//        },
-//    );
-//
-//    await Promise.all([
-//        client.connect(clientTransport),
-//        server.connect(serverTransport),
-//    ]);
-//
-//    // Set up abort controller
-//    const controller = new AbortController();
-//
-//    // Issue request but cancel it immediately
-//    const listResourcesPromise = client.listResources(undefined, {
-//            signal: controller.signal,
-//    });
-//    controller.abort("Cancelled by test");
-//
-//    // Request should be rejected
-//    await expect(listResourcesPromise).rejects.toBe("Cancelled by test");
-//});
-//
-//test("should handle request timeout", async () => {
-//    const server = new Server(
-//        {
-//            name: "test server",
-//            version: "1.0",
-//        },
-//        {
-//            capabilities: {
-//            resources: {},
-//        },
-//        },
-//    );
-//
-//    // Set up server with a delayed response
-//    server.setRequestHandler(
-//        ListResourcesRequestSchema,
-//        async (_request, extra) => {
-//        const timer = new Promise((resolve) => {
-//            const timeout = setTimeout(resolve, 100);
-//            extra.signal.addEventListener("abort", () => clearTimeout(timeout));
-//        });
-//
-//        await timer;
-//        return {
-//            resources: [],
-//        };
-//    },
-//    );
-//
-//    const [clientTransport, serverTransport] =
-//        InMemoryTransport.createLinkedPair();
-//
-//    const client = new Client(
-//        {
-//            name: "test client",
-//            version: "1.0",
-//        },
-//        {
-//            capabilities: {},
-//        },
-//    );
-//
-//    await Promise.all([
-//        client.connect(clientTransport),
-//        server.connect(serverTransport),
-//    ]);
-//
-//    // Request with 0 msec timeout should fail immediately
-//    await expect(
-//            client.listResources(undefined, { timeout: 0 }),
-//    ).rejects.toMatchObject({
-//            code: ErrorCode.RequestTimeout,
-//    });
-//});

@@ -284,7 +284,7 @@ data class ClientCapabilities(
 }
 
 @Serializable(with = ClientRequestPolymorphicSerializer::class)
-sealed interface ClientRequest : Request
+interface ClientRequest : Request
 
 @Serializable(with = ClientNotificationPolymorphicSerializer::class)
 sealed interface ClientNotification : Notification
