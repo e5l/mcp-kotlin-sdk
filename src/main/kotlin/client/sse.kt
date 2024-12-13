@@ -30,8 +30,6 @@ import kotlin.time.Duration
 /**
  * Client transport for SSE: this will connect to a server using Server-Sent Events for receiving
  * messages and make separate POST requests for sending messages.
- *
- * This uses the EventSource API in browsers. You can install the `eventsource` package for Node.js.
  */
 class SSEClientTransport(
     private val url: Url,
