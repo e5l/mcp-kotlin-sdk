@@ -42,6 +42,14 @@ class AbortSignal {
     var aborted: Boolean = false
 }
 
+internal val McpJson by lazy {
+    Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+        isLenient = true
+    }
+}
+
 /**
  * Additional initialization options.
  */
@@ -199,7 +207,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
                 is JSONRPCRequest -> onRequest(message)
                 is JSONRPCNotification -> onNotification(message)
                 is JSONRPCError -> error(message.message)
-                else -> error("Unknown message type: ${Json.encodeToString(message)}")
+                else -> error("Unknown message type: ${McpJson.encodeToString(message)}")
             }
         }
 
@@ -300,7 +308,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
         if (handler == null) {
             this.onError(
                 Error(
-                    "Received a progress notification for an unknown token: ${Json.encodeToString(notification)}",
+                    "Received a progress notification for an unknown token: ${McpJson.encodeToString(notification)}",
                 ),
             )
             return
@@ -313,7 +321,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
         val messageId = response?.id
         val handler = this.responseHandlers[messageId]
         if (handler == null) {
-            this.onError(Error("Received a response for an unknown message ID: ${Json.encodeToString(response)}"))
+            this.onError(Error("Received a response for an unknown message ID: ${McpJson.encodeToString(response)}"))
             return
         }
 
@@ -426,7 +434,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
 
             val serialized = JSONRPCNotification(
                 notification.method.value,
-                params = Json.encodeToJsonElement(notification.params) as JsonObject
+                params = McpJson.encodeToJsonElement(notification.params) as JsonObject
             )
             transport.send(serialized)
 
@@ -462,7 +470,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
 
         val message = JSONRPCNotification(
             notification.method.value,
-            params = Json.encodeToJsonElement<Notification>(notification) as JsonObject,
+            params = McpJson.encodeToJsonElement<Notification>(notification) as JsonObject,
         )
         transport.send(message)
     }
