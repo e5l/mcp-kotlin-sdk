@@ -15,12 +15,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.properties.Delegates
 import kotlin.time.Duration
 
-fun HttpClient.mcpSseTransport(
-    urlString: String? = null,
-    reconnectionTime: Duration? = null,
-    requestBuilder: HttpRequestBuilder.() -> Unit = {},
-) = SseMcpClientTransport(this, urlString, reconnectionTime, requestBuilder)
-
 /**
  * Client transport for SSE: this will connect to a server using Server-Sent Events for receiving
  * messages and make separate POST requests for sending messages.
