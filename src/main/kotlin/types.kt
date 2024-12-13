@@ -291,8 +291,6 @@ interface ClientRequest : Request
 @Serializable(with = ClientNotificationPolymorphicSerializer::class)
 sealed interface ClientNotification : Notification
 
-abstract class CustomClientNotification : ClientNotification
-
 @Serializable
 sealed interface ClientResult : RequestResult
 

@@ -3,9 +3,6 @@ package client
 import ClientCapabilities
 import CreateMessageRequest
 import CreateMessageResult
-import CustomMeta
-import CustomRequest
-import CustomResult
 import Implementation
 import InitializeResult
 import JSONRPCMessage
@@ -19,9 +16,7 @@ import SUPPORTED_PROTOCOL_VERSIONS
 import ServerCapabilities
 import TextContent
 import kotlinx.coroutines.test.runTest
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
 import shared.Transport
 import kotlin.test.Test
 import kotlin.test.assertEquals
