@@ -142,7 +142,10 @@ class StdioClientTransport(
                     when(e) { // TODO
                         is IOException -> {}
                         is CancellationException -> {}
-                        else -> { onError?.invoke(e) }
+                        else -> {
+                            onError?.invoke(e)
+                            System.err.println(e) // todo()
+                        }
                     }
                 } finally {
                     input.close()
@@ -157,7 +160,10 @@ class StdioClientTransport(
                         outputStream.flush()
                     }
                 } catch (e: Throwable) {
-                    if (isActive) onError?.invoke(e)
+                    if (isActive) {
+                        onError?.invoke(e)
+                        System.err.println(e) // todo()
+                    }
                 } finally {
                     outputStream.close()
                 }
