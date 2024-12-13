@@ -96,15 +96,14 @@ open class Client(
             super.connect(transport)
 
             try {
-                val result = request<InitializeResult>(
-                    InitializeRequest(
-                        params = InitializeRequest.Params(
-                            protocolVersion = LATEST_PROTOCOL_VERSION,
-                            capabilities = capabilities,
-                            clientInfo = clientInfo
-                        )
+                val message = InitializeRequest(
+                    params = InitializeRequest.Params(
+                        protocolVersion = LATEST_PROTOCOL_VERSION,
+                        capabilities = capabilities,
+                        clientInfo = clientInfo
                     )
                 )
+                val result = request<InitializeResult>(message)
 
                 if (result == null) {
                     throw IllegalStateException("Server sent invalid initialize result.")
