@@ -3,6 +3,7 @@ package client
 import ClientCapabilities
 import CreateMessageRequest
 import CreateMessageResult
+import EmptyJsonObject
 import Implementation
 import InitializeResult
 import JSONRPCMessage
@@ -65,7 +66,7 @@ class ClientTest {
             ),
             options = ClientOptions(
                 capabilities = ClientCapabilities(
-                    sampling = JsonObject(emptyMap())
+                    sampling = EmptyJsonObject
                 )
             )
         )
@@ -115,7 +116,7 @@ class ClientTest {
             ),
             options = ClientOptions(
                 capabilities = ClientCapabilities(
-                    sampling = JsonObject(emptyMap())
+                    sampling = EmptyJsonObject
                 )
             )
         )
@@ -202,7 +203,7 @@ class ClientTest {
             ),
             options = ClientOptions(
                 capabilities = ClientCapabilities(
-                    sampling = JsonObject(emptyMap())
+                    sampling = EmptyJsonObject
                 )
             )
         )
