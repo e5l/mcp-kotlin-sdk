@@ -503,7 +503,7 @@ sealed interface PaginatedResult : RequestResult {
 /**
  * The contents of a specific resource or sub-resource.
  */
-@Serializable
+@Serializable(with = ResourceContentsPolymorphicSerializer::class)
 sealed interface ResourceContents {
     /**
      * The URI of this resource.
@@ -532,6 +532,12 @@ data class BlobResourceContents(
      * A base64-encoded string representing the binary data of the item.
      */
     val blob: String,
+    override val uri: String,
+    override val mimeType: String?,
+) : ResourceContents
+
+@Serializable
+data class UnknownResourceContents(
     override val uri: String,
     override val mimeType: String?,
 ) : ResourceContents

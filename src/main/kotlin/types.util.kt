@@ -98,6 +98,18 @@ internal object PromptMessageContentTextOrImagePolymorphicSerializer :
     }
 }
 
+internal object ResourceContentsPolymorphicSerializer :
+    JsonContentPolymorphicSerializer<ResourceContents>(ResourceContents::class) {
+    override fun selectDeserializer(element: JsonElement): DeserializationStrategy<ResourceContents> {
+        val jsonObject = element.jsonObject
+        return when {
+            jsonObject.contains("text") -> TextResourceContents.serializer()
+            jsonObject.contains("blob") -> BlobResourceContents.serializer()
+            else -> UnknownResourceContents.serializer()
+        }
+    }
+}
+
 private fun selectClientRequestDeserializer(element: JsonElement): DeserializationStrategy<ClientRequest>? {
     return when (element.jsonObject.getValue("method").jsonPrimitive.content) {
         Method.Defined.Ping.value -> PingRequest.serializer()
