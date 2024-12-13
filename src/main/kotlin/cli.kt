@@ -7,11 +7,19 @@ import server.ServerOptions
 import server.StdioServerTransport
 
 fun main(args: Array<String>) {
-    if (args.isNotEmpty() && args[0] == "--server") {
-        runServer()
+    if (args.isEmpty())
         return
+    val first = args[0]
+    when (first) {
+        "--server" -> runServer()
+        "--demo" -> runDemo()
+        else -> {
+            System.err.println("Unknown argument: $first")
+        }
     }
+}
 
+private fun runDemo() {
     val processBuilder = ProcessBuilder("npx", "-y", "@jetbrains/mcp-proxy")
 
     var process: Process? = null
