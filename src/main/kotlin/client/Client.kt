@@ -1,25 +1,46 @@
 package client
 
+import CallToolRequest
+import CallToolResult
 import CallToolResultBase
 import ClientCapabilities
 import ClientNotification
 import ClientRequest
 import ClientResult
+import CompatibilityCallToolResult
+import CompleteRequest
+import CompleteResult
+import EmptyResult
+import GetPromptRequest
+import GetPromptResult
 import Implementation
+import InitializeRequest
+import InitializeResult
 import LATEST_PROTOCOL_VERSION
+import ListPromptsResult
+import ListResourceTemplatesResult
+import ListResourcesResult
+import ListToolsResult
 import Method
+import PingRequest
+import ReadResourceRequest
+import ReadResourceResult
 import SUPPORTED_PROTOCOL_VERSIONS
 import ServerCapabilities
+import SetLevelRequest
+import SubscribeRequest
+import UnsubscribeRequest
 import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
 import shared.*
 
-data class ClientOptions(
+class ClientOptions(
     /**
      * Capabilities to advertise as being supported by this client.
      */
     val capabilities: ClientCapabilities
-) : ProtocolOptions
+) : ProtocolOptions()
 
 /**
  * An MCP client on top of a pluggable transport.
@@ -39,13 +60,13 @@ data class ClientOptions(
  * ```
  */
 open class Client<
-        RequestT : Request,
-        NotificationT : Notification,
-        ResultT : Result
+        RequestT : ClientRequest,
+        NotificationT : ClientNotification,
+        ResultT : ClientResult
         >(
     private val clientInfo: Implementation,
     options: ClientOptions
-) : Protocol<ClientRequest, ClientNotification, ClientResult>(options) {
+) : Protocol<RequestT, NotificationT, ResultT>(options) {
 
     private var serverCapabilities: ServerCapabilities? = null
     private var serverVersion: Implementation? = null
@@ -67,44 +88,43 @@ open class Client<
     }
 
 
-
-
     override fun connect(transport: Transport): Deferred<Unit> {
-        super.connect(transport)
-        try {
-            val result = request(
-                RequestBase(
-                    method = Method.Defined.Initialize,
-                    params = InitializeRequest.Params(
-                        protocolVersion = LATEST_PROTOCOL_VERSION,
-                        capabilities = capabilities,
-                        clientInfo = clientInfo
+        return GlobalScope.async {
+            super.connect(transport).await()
+
+            try {
+                val result = request<InitializeResult>(
+                    InitializeRequest(
+                        params = InitializeRequest.Params(
+                            protocolVersion = LATEST_PROTOCOL_VERSION,
+                            capabilities = capabilities,
+                            clientInfo = clientInfo
+                        )
                     )
-                ),
-                InitializeResult::class
-            )
+                ).await()
 
-            if (result == null) {
-                throw IllegalStateException("Server sent invalid initialize result.")
-            }
+                if (result == null) {
+                    throw IllegalStateException("Server sent invalid initialize result.")
+                }
 
-            if (!SUPPORTED_PROTOCOL_VERSIONS.contains(result.protocolVersion)) {
-                throw IllegalStateException(
-                    "Server's protocol version is not supported: ${result.protocolVersion}"
+                if (!SUPPORTED_PROTOCOL_VERSIONS.contains(result.protocolVersion)) {
+                    throw IllegalStateException(
+                        "Server's protocol version is not supported: ${result.protocolVersion}"
+                    )
+                }
+
+                serverCapabilities = result.capabilities
+                serverVersion = result.serverInfo
+
+                notification(
+                    NotificationBase(
+                        method = Method.Defined.NotificationsInitialized
+                    )
                 )
+            } catch (error: Throwable) {
+                close()
+                throw error
             }
-
-            serverCapabilities = result.capabilities
-            serverVersion = result.serverInfo
-
-            notification(
-                NotificationBase(
-                    method = Method.Defined.NotificationsInitialized
-                )
-            )
-        } catch (error: Throwable) {
-            close()
-            throw error
         }
     }
 
@@ -220,11 +240,7 @@ open class Client<
     }
 
     suspend fun ping(options: RequestOptions? = null) {
-        request(
-            RequestBase(method = Method.Defined.Ping),
-            EmptyResult::class,
-            options
-        )
+        request<EmptyResult>(PingRequest(), options).await()
     }
 
     suspend fun complete(params: CompleteRequest.Params, options: RequestOptions? = null): CompleteResult? {
@@ -251,7 +267,10 @@ open class Client<
         )
     }
 
-    suspend fun listPrompts(params: ListPromptsRequest.Params? = null, options: RequestOptions? = null): ListPromptsResult? {
+    suspend fun listPrompts(
+        params: ListPromptsRequest.Params? = null,
+        options: RequestOptions? = null
+    ): ListPromptsResult? {
         return request(
             RequestBase(method = Method.Defined.PromptsList, params = params),
             ListPromptsResult::class,
@@ -259,7 +278,10 @@ open class Client<
         )
     }
 
-    suspend fun listResources(params: ListResourcesRequest.Params? = null, options: RequestOptions? = null): ListResourcesResult? {
+    suspend fun listResources(
+        params: ListResourcesRequest.Params? = null,
+        options: RequestOptions? = null
+    ): ListResourcesResult? {
         return request(
             RequestBase(method = Method.Defined.ResourcesList, params = params),
             ListResourcesResult::class,
@@ -267,7 +289,10 @@ open class Client<
         )
     }
 
-    suspend fun listResourceTemplates(params: ListResourceTemplatesRequest.Params? = null, options: RequestOptions? = null): ListResourceTemplatesResult? {
+    suspend fun listResourceTemplates(
+        params: ListResourceTemplatesRequest.Params? = null,
+        options: RequestOptions? = null
+    ): ListResourceTemplatesResult? {
         return request(
             RequestBase(method = Method.Defined.ResourcesTemplatesList, params = params),
             ListResourceTemplatesResult::class,
