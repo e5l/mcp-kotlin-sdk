@@ -97,65 +97,115 @@ internal object PromptMessageContentTextOrImagePolymorphicSerializer :
     }
 }
 
+private fun selectClientRequestDeserializer(element: JsonElement): DeserializationStrategy<ClientRequest>? {
+    return when (element.jsonObject.getValue("method").jsonPrimitive.content) {
+        Method.Defined.Ping.value -> PingRequest.serializer()
+        Method.Defined.Initialize.value -> InitializeRequest.serializer()
+        Method.Defined.CompletionComplete.value -> CompleteRequest.serializer()
+        Method.Defined.LoggingSetLevel.value -> SetLevelRequest.serializer()
+        Method.Defined.PromptsGet.value -> GetPromptRequest.serializer()
+        Method.Defined.PromptsList.value -> ListPromptsRequest.serializer()
+        Method.Defined.ResourcesList.value -> ListResourcesRequest.serializer()
+        Method.Defined.ResourcesTemplatesList.value -> ListResourceTemplatesRequest.serializer()
+        Method.Defined.ResourcesRead.value -> ReadResourceRequest.serializer()
+        Method.Defined.ResourcesSubscribe.value -> SubscribeRequest.serializer()
+        Method.Defined.ResourcesUnsubscribe.value -> UnsubscribeRequest.serializer()
+        Method.Defined.ToolsCall.value -> CallToolRequest.serializer()
+        Method.Defined.ToolsList.value -> ListToolsRequest.serializer()
+        else -> null
+    }
+}
+
 internal object ClientRequestPolymorphicSerializer :
     JsonContentPolymorphicSerializer<ClientRequest>(ClientRequest::class) {
     override fun selectDeserializer(element: JsonElement): DeserializationStrategy<ClientRequest> {
-        return when (element.jsonObject.getValue("method").jsonPrimitive.content) {
-            Method.Defined.Ping.value -> PingRequest.serializer()
-            Method.Defined.Initialize.value -> InitializeRequest.serializer()
-            Method.Defined.CompletionComplete.value -> CompleteRequest.serializer()
-            Method.Defined.LoggingSetLevel.value -> SetLevelRequest.serializer()
-            Method.Defined.PromptsGet.value -> GetPromptRequest.serializer()
-            Method.Defined.PromptsList.value -> ListPromptsRequest.serializer()
-            Method.Defined.ResourcesList.value -> ListResourcesRequest.serializer()
-            Method.Defined.ResourcesTemplatesList.value -> ListResourceTemplatesRequest.serializer()
-            Method.Defined.ResourcesRead.value -> ReadResourceRequest.serializer()
-            Method.Defined.ResourcesSubscribe.value -> SubscribeRequest.serializer()
-            Method.Defined.ResourcesUnsubscribe.value -> UnsubscribeRequest.serializer()
-            Method.Defined.ToolsCall.value -> CallToolRequest.serializer()
-            Method.Defined.ToolsList.value -> ListToolsRequest.serializer()
-            else -> UnknownMethodRequestOrNotification.serializer()
-        }
+        return selectClientRequestDeserializer(element)
+            ?: UnknownMethodRequestOrNotification.serializer()
+    }
+}
+
+private fun selectClientNotificationDeserializer(element: JsonElement): DeserializationStrategy<ClientNotification>? {
+    return when (element.jsonObject.getValue("method").jsonPrimitive.content) {
+        Method.Defined.NotificationsCancelled.value -> CancelledNotification.serializer()
+        Method.Defined.NotificationsProgress.value -> ProgressNotification.serializer()
+        Method.Defined.NotificationsInitialized.value -> InitializedNotification.serializer()
+        Method.Defined.NotificationsRootsListChanged.value -> RootsListChangedNotification.serializer()
+        else -> null
     }
 }
 
 internal object ClientNotificationPolymorphicSerializer :
     JsonContentPolymorphicSerializer<ClientNotification>(ClientNotification::class) {
     override fun selectDeserializer(element: JsonElement): DeserializationStrategy<ClientNotification> {
-        return when (element.jsonObject.getValue("method").jsonPrimitive.content) {
-            Method.Defined.NotificationsCancelled.value -> CancelledNotification.serializer()
-            Method.Defined.NotificationsProgress.value -> ProgressNotification.serializer()
-            Method.Defined.NotificationsInitialized.value -> InitializedNotification.serializer()
-            Method.Defined.NotificationsRootsListChanged.value -> RootsListChangedNotification.serializer()
-            else -> UnknownMethodRequestOrNotification.serializer()
-        }
+        return selectClientNotificationDeserializer(element)
+            ?: UnknownMethodRequestOrNotification.serializer()
+    }
+}
+
+private fun selectServerRequestDeserializer(element: JsonElement): DeserializationStrategy<ServerRequest>? {
+    return when (element.jsonObject.getValue("method").jsonPrimitive.content) {
+        Method.Defined.Ping.value -> PingRequest.serializer()
+        Method.Defined.SamplingCreateMessage.value -> CreateMessageRequest.serializer()
+        Method.Defined.RootsList.value -> ListRootsRequest.serializer()
+        else -> null
     }
 }
 
 internal object ServerRequestPolymorphicSerializer :
     JsonContentPolymorphicSerializer<ServerRequest>(ServerRequest::class) {
     override fun selectDeserializer(element: JsonElement): DeserializationStrategy<ServerRequest> {
-        return when (element.jsonObject.getValue("method").jsonPrimitive.content) {
-            Method.Defined.Ping.value -> PingRequest.serializer()
-            Method.Defined.SamplingCreateMessage.value -> CreateMessageRequest.serializer()
-            Method.Defined.RootsList.value -> ListRootsRequest.serializer()
-            else -> UnknownMethodRequestOrNotification.serializer()
-        }
+        return selectServerRequestDeserializer(element)
+            ?: UnknownMethodRequestOrNotification.serializer()
+    }
+}
+
+private fun selectServerNotificationDeserializer(element: JsonElement): DeserializationStrategy<ServerNotification>? {
+    return when (element.jsonObject.getValue("method").jsonPrimitive.content) {
+        Method.Defined.NotificationsCancelled.value -> CancelledNotification.serializer()
+        Method.Defined.NotificationsProgress.value -> ProgressNotification.serializer()
+        Method.Defined.NotificationsMessage.value -> LoggingMessageNotification.serializer()
+        Method.Defined.NotificationsResourcesUpdated.value -> ResourceUpdatedNotification.serializer()
+        Method.Defined.NotificationsResourcesListChanged.value -> ResourceListChangedNotification.serializer()
+        Method.Defined.ToolsList.value -> ToolListChangedNotification.serializer()
+        Method.Defined.PromptsList.value -> PromptListChangedNotification.serializer()
+        else -> null
     }
 }
 
 internal object ServerNotificationPolymorphicSerializer :
     JsonContentPolymorphicSerializer<ServerNotification>(ServerNotification::class) {
     override fun selectDeserializer(element: JsonElement): DeserializationStrategy<ServerNotification> {
-        return when (element.jsonObject.getValue("method").jsonPrimitive.content) {
-            Method.Defined.NotificationsCancelled.value -> CancelledNotification.serializer()
-            Method.Defined.NotificationsProgress.value -> ProgressNotification.serializer()
-            Method.Defined.NotificationsMessage.value -> LoggingMessageNotification.serializer()
-            Method.Defined.NotificationsResourcesUpdated.value -> ResourceUpdatedNotification.serializer()
-            Method.Defined.NotificationsResourcesListChanged.value -> ResourceListChangedNotification.serializer()
-            Method.Defined.ToolsList.value -> ToolListChangedNotification.serializer()
-            Method.Defined.PromptsList.value -> PromptListChangedNotification.serializer()
-            else -> UnknownMethodRequestOrNotification.serializer()
+        return selectServerNotificationDeserializer(element)
+            ?: UnknownMethodRequestOrNotification.serializer()
+    }
+}
+
+internal object NotificationPolymorphicSerializer :
+    JsonContentPolymorphicSerializer<Notification>(Notification::class) {
+    override fun selectDeserializer(element: JsonElement): DeserializationStrategy<Notification> {
+        return selectClientNotificationDeserializer(element)
+            ?: selectServerNotificationDeserializer(element)
+            ?: UnknownMethodRequestOrNotification.serializer()
+    }
+}
+
+internal object RequestPolymorphicSerializer :
+    JsonContentPolymorphicSerializer<Request>(Request::class) {
+    override fun selectDeserializer(element: JsonElement): DeserializationStrategy<Request> {
+        return selectClientRequestDeserializer(element)
+            ?: selectServerRequestDeserializer(element)
+            ?: UnknownMethodRequestOrNotification.serializer()
+    }
+}
+
+internal object JSONRPCMessagePolymorphicSerializer :
+    JsonContentPolymorphicSerializer<JSONRPCMessage>(JSONRPCMessage::class) {
+    override fun selectDeserializer(element: JsonElement): DeserializationStrategy<JSONRPCMessage> {
+        return when {
+            element.jsonObject.contains("message") -> JSONRPCError.serializer()
+            !element.jsonObject.contains("method") -> JSONRPCResponse.serializer()
+            element.jsonObject.contains("id") -> JSONRPCRequest.serializer()
+            else -> JSONRPCNotification.serializer()
         }
     }
 }
