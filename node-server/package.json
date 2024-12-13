@@ -1,22 +1,24 @@
 {
-  "name": "tcp-echo-server",
-  "version": "1.0.0",
-  "description": "TCP Echo Server in TypeScript",
-  "main": "dist/server.js",
-  "scripts": {
-    "start": "ts-node src/server.ts",
-    "build": "tsc",
-    "serve": "node dist/server.js"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "@types/node": "^20.11.0",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
-  },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.3"
-  }
+    "main": "dist/server.js",
+    "type": "module",
+    "bin": {
+        "node-server": "dist/server.js"
+    },
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "tsc --outDir dist && shx chmod +x dist/*.js",
+        "prepare": "npm run build",
+        "watch": "tsc --watch --outDir dist"
+    },
+    "dependencies": {
+        "@modelcontextprotocol/sdk": "1.0.3",
+        "node-fetch": "^3.3.2"
+    },
+    "devDependencies": {
+        "@types/node": "^20.11.0",
+        "shx": "^0.3.4",
+        "typescript": "^5.3.3"
+    }
 }
