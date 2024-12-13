@@ -23,9 +23,10 @@ fun Route.mcpSse(
     options: ServerOptions? = null,
     incomingPath: String = "",
     incomingHandler: (IncomingHandler)? = null,
+    handler: suspend Server.() -> Unit = {},
 ) {
     sse {
-        createMcpServer(this, incomingPath, options)
+        createMcpServer(this, incomingPath, options, handler)
     }
 
     setupPostRoute(incomingPath, incomingHandler)
@@ -36,9 +37,10 @@ fun Route.mcpSse(
     incomingPath: String = path,
     options: ServerOptions? = null,
     incomingHandler: (IncomingHandler)? = null,
+    handler: suspend Server.() -> Unit = {},
 ) {
     sse(path) {
-        createMcpServer(this, incomingPath, options)
+        createMcpServer(this, incomingPath, options, handler)
     }
 
     setupPostRoute(incomingPath, incomingHandler)
@@ -82,6 +84,7 @@ private suspend fun Route.createMcpServer(
     session: ServerSSESession,
     incomingPath: String,
     options: ServerOptions?,
+    handler: suspend Server.() -> Unit = {},
 ) {
     val transport = SseMcpServerTransport(
         endpoint = incomingPath,
@@ -113,5 +116,6 @@ private suspend fun Route.createMcpServer(
         .put(transport.sessionId.asAttributeKey(), transport)
 
     server.connect(transport)
-    closed.await()
+    handler(server)
+    server.close()
 }
