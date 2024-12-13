@@ -4,6 +4,10 @@ import JSONRPCMessage
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.consumeEach
+import kotlinx.io.Sink
+import kotlinx.io.Source
+import kotlinx.io.asInputStream
+import kotlinx.io.asOutputStream
 import shared.ReadBuffer
 import shared.Transport
 import shared.serializeMessage
@@ -70,11 +74,11 @@ private fun getDefaultEnvironment(): Map<String, String> {
  * this will connect to a server by spawning a process and communicating with it over stdin/stdout.
  */
 class StdioClientTransport(
-    private val serverParams: StdioServerParameters,
+//    private val serverParams: StdioServerParameters,
+    private val input: Source,
+    private val output: Sink
 ) : Transport {
     private val jsonRpcContext: CoroutineContext = Dispatchers.IO
-
-    private var process: Process? = null
     private val scope = CoroutineScope(jsonRpcContext + SupervisorJob())
     private var job: Job? = null
     private var started = false
@@ -91,32 +95,35 @@ class StdioClientTransport(
         }
         started = true
 
-        val envMap = serverParams.env ?: getDefaultEnvironment()
-        val pb = ProcessBuilder(listOf(serverParams.command) + serverParams.args)
-        val environment = pb.environment()
-        environment.clear()
-        environment.putAll(envMap)
+//        val envMap = serverParams.env ?: getDefaultEnvironment()
+//        val pb = ProcessBuilder(listOf(serverParams.command) + serverParams.args)
+//        val environment = pb.environment()
+//        environment.clear()
+//        environment.putAll(envMap)
 
-        when (serverParams.stderr) {
-            StdioOption.INHERIT -> pb.redirectError(ProcessBuilder.Redirect.INHERIT)
-            StdioOption.PIPE -> pb.redirectError(ProcessBuilder.Redirect.PIPE)
-            StdioOption.IGNORE, null -> pb.redirectError(ProcessBuilder.Redirect.DISCARD)
-        }
+//        when (serverParams.stderr) {
+//            StdioOption.INHERIT -> pb.redirectError(ProcessBuilder.Redirect.INHERIT)
+//            StdioOption.PIPE -> pb.redirectError(ProcessBuilder.Redirect.PIPE)
+//            StdioOption.IGNORE, null -> pb.redirectError(ProcessBuilder.Redirect.DISCARD)
+//        }
 
-        val p = try {
-            pb.start()
-        } catch (e: Throwable) {
-            throw RuntimeException("Failed to start process", e)
-        }
-        process = p
+//        val p = try {
+//            pb.start()
+//        } catch (e: Throwable) {
+//            throw RuntimeException("Failed to start process", e)
+//        }
+//        process = p
 
-        if (p.inputStream == null || p.outputStream == null) {
-            p.destroy()
-            throw RuntimeException("Process input or output stream is null")
-        }
+//        if (p.inputStream == null || p.outputStream == null) {
+//            p.destroy()
+//            throw RuntimeException("Process input or output stream is null")
+//        }
 
-        val inputStream = p.inputStream.buffered()
-        val outputStream = p.outputStream.bufferedWriter(UTF_8)
+//        val inputStream = p.inputStream.buffered()
+//        val outputStream = p.outputStream.bufferedWriter(UTF_8)
+
+        val inputStream = input.asInputStream()
+        val outputStream = output.asOutputStream().bufferedWriter(UTF_8)
 
         job = scope.launch {
             val readJob = launch {
@@ -156,29 +163,35 @@ class StdioClientTransport(
                 }
             }
 
-            val exitJob = launch {
-                p.waitFor()
-                onClose?.invoke()
-            }
+//            val exitJob = launch {
+//                p.waitFor()
+//                onClose?.invoke()
+//            }
 
             readJob.join()
             writeJob.cancelAndJoin()
-            exitJob.join()
+            onClose?.invoke()
+//            exitJob.join()
         }
     }
 
     override suspend fun send(message: JSONRPCMessage) {
-        CompletableDeferred<Unit>()
-        if (process == null) {
-            throw IllegalStateException("Not connected")
+//        CompletableDeferred<Unit>()
+//        if (process == null) {
+//            throw IllegalStateException("Not connected")
+//        }
+        if (!started) {
+            throw IllegalStateException("Transport not started")
         }
 
         sendChannel.send(message)
     }
 
     override suspend fun close() {
-        process?.destroy()
-        process = null
+//        process?.destroy()
+//        process = null
+        input.close()
+        output.close()
         readBuffer.clear()
         sendChannel.close()
         job?.cancelAndJoin()
