@@ -206,8 +206,6 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
                 is JSONRPCResponse -> onResponse(message, null)
                 is JSONRPCRequest -> onRequest(message)
                 is JSONRPCNotification -> onNotification(message)
-                is JSONRPCError -> error(message.message)
-                else -> error("Unknown message type: ${McpJson.encodeToString(message)}")
             }
         }
 
