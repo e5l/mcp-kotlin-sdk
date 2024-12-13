@@ -47,7 +47,7 @@ class ClientOptions(
     /**
      * Capabilities to advertise as being supported by this client.
      */
-    val capabilities: ClientCapabilities
+    val capabilities: ClientCapabilities = ClientCapabilities()
 ) : ProtocolOptions()
 
 /**
