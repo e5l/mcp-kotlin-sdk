@@ -1,15 +1,11 @@
 package server
 
 import JSONRPCMessage
-import io.ktor.client.request.HttpRequest
-import io.ktor.http.ContentType
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.encodeURLPath
-import io.ktor.server.application.ApplicationCall
-import io.ktor.server.request.contentType
-import io.ktor.server.request.receiveText
-import io.ktor.server.response.respondText
-import io.ktor.server.sse.ServerSSESession
+import io.ktor.http.*
+import io.ktor.server.application.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
+import io.ktor.server.sse.*
 import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.job
 import kotlinx.serialization.encodeToString
@@ -19,16 +15,16 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-private const val MAXIMUM_MESSAGE_SIZE = "4mb";
+const val SESSION_ID_PARAM = "sessionId"
 
 /**
  * Server transport for SSE: this will send messages over an SSE connection and receive messages from HTTP POST requests.
  *
  * Creates a new SSE server transport, which will direct the client to POST messages to the relative or absolute URL identified by `_endpoint`.
  */
-class SSEServerTransport(
+class SseMcpServerTransport(
     private val endpoint: String,
-    private val session: ServerSSESession
+    private val session: ServerSSESession,
 ) : Transport {
     private val initialized = AtomicBoolean(false)
 
@@ -52,7 +48,7 @@ class SSEServerTransport(
         // Send the endpoint event
         session.send(
             event = "endpoint",
-            data = "${endpoint.encodeURLPath()}?sessionId=${sessionId}",
+            data = "${endpoint.encodeURLPath()}?$SESSION_ID_PARAM=${sessionId}",
         )
 
         @OptIn(InternalCoroutinesApi::class)
@@ -88,8 +84,8 @@ class SSEServerTransport(
 
         try {
             handleMessage(body)
-        } catch (_ : Exception) {
-            call.respondText("Invalid message: $body", status = HttpStatusCode.BadRequest)
+        } catch (e: Exception) {
+            call.respondText("Invalid message: $body, error: ${e.message}", status = HttpStatusCode.BadRequest)
             return
         }
 
@@ -104,7 +100,7 @@ class SSEServerTransport(
         try {
             val parsedMessage = McpJson.decodeFromString<JSONRPCMessage>(message)
             onMessage?.invoke(parsedMessage)
-        } catch (e : Exception) {
+        } catch (e: Exception) {
             onError?.invoke(e)
             throw e
         }
