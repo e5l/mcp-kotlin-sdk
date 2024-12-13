@@ -1,3 +1,5 @@
+import client.Client
+import client.StdioClientTransport
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import server.Server
@@ -8,6 +10,25 @@ fun main(args: Array<String>) {
     if (args.isNotEmpty() && args[0] == "--server") {
         runServer()
         return
+    }
+
+    val processBuilder = ProcessBuilder("npx", "-y", "@jetbrains/mcp-proxy")
+
+    var process: Process? = null
+    try {
+        process = processBuilder.start()
+
+        val client = Client(
+            Implementation("test", "1.0"),
+        )
+        val transport = StdioClientTransport(process.inputStream, process.outputStream)
+        runBlocking {
+            client.connect(transport)
+            val tools = client.listTools()
+            System.err.println("Tools: $tools")
+        }
+    } finally {
+        process?.destroy()
     }
 }
 
