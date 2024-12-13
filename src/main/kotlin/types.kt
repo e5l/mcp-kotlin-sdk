@@ -2,11 +2,7 @@
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.encodeToJsonElement
-import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.*
 import java.util.concurrent.atomic.AtomicLong
 
 const val LATEST_PROTOCOL_VERSION = "2024-11-05"
@@ -93,7 +89,13 @@ sealed interface Request {
 }
 
 fun Request.toJSON(): JSONRPCRequest {
-    val encoded = Json.encodeToJsonElement<Request>(this)
+    val encoded = when(this) {
+        is ClientRequest -> Json.encodeToJsonElement<ClientRequest>(this)
+        is ServerRequest -> Json.encodeToJsonElement<ServerRequest>(this)
+        is CustomRequest -> Json.encodeToJsonElement<CustomRequest>(this)
+        else -> error("Unknown type: ${this::class.qualifiedName}")
+    }
+
     return JSONRPCRequest(
         method = method.value,
         params = encoded,
