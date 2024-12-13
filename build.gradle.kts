@@ -35,6 +35,7 @@ repositories {
 dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("io.ktor:ktor-client-apache:3.0.2")
+    implementation("io.ktor:ktor-client-cio:3.0.2")
     implementation("io.ktor:ktor-server-sse:3.0.2")
     implementation("io.ktor:ktor-server-websockets:3.0.2")
     testImplementation(kotlin("test"))

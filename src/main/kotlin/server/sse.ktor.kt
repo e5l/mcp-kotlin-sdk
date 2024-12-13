@@ -46,6 +46,31 @@ fun Route.mcpSse(
     setupPostRoute(incomingPath, incomingHandler)
 }
 
+fun Route.mcpSseTransport(
+    incomingPath: String = "",
+    incomingHandler: (IncomingHandler)? = null,
+    handler: suspend SseMcpServerTransport.() -> Unit = {},
+) {
+    sse {
+        handler(createMcpTransport(this, incomingPath))
+    }
+
+    setupPostRoute(incomingPath, incomingHandler)
+}
+
+fun Route.mcpSseTransport(
+    path: String,
+    incomingPath: String = path,
+    incomingHandler: (IncomingHandler)? = null,
+    handler: suspend SseMcpServerTransport.() -> Unit = {},
+) {
+    sse(path) {
+        handler(createMcpTransport(this, incomingPath))
+    }
+
+    setupPostRoute(incomingPath, incomingHandler)
+}
+
 internal val McpServersKey = AttributeKey<Attributes>("mcp-servers")
 
 private fun String.asAttributeKey() = AttributeKey<SseMcpServerTransport>(this)
@@ -86,10 +111,7 @@ private suspend fun Route.createMcpServer(
     options: ServerOptions?,
     handler: suspend Server.() -> Unit = {},
 ) {
-    val transport = SseMcpServerTransport(
-        endpoint = incomingPath,
-        session = session,
-    )
+    val transport = createMcpTransport(session, incomingPath)
 
     val closed = CompletableDeferred<Unit>()
 
@@ -111,11 +133,23 @@ private suspend fun Route.createMcpServer(
         },
     )
 
+    server.connect(transport)
+    handler(server)
+    server.close()
+}
+
+private fun Route.createMcpTransport(
+    session: ServerSSESession,
+    incomingPath: String,
+): SseMcpServerTransport {
+    val transport = SseMcpServerTransport(
+        endpoint = incomingPath,
+        session = session,
+    )
+
     application.attributes
         .computeIfAbsent(McpServersKey) { Attributes(concurrent = true) }
         .put(transport.sessionId.asAttributeKey(), transport)
 
-    server.connect(transport)
-    handler(server)
-    server.close()
+    return transport
 }
