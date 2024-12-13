@@ -54,6 +54,7 @@ internal val McpJson by lazy {
         encodeDefaults = true
         isLenient = true
         classDiscriminatorMode = ClassDiscriminatorMode.NONE
+        explicitNulls = false
     }
 }
 
