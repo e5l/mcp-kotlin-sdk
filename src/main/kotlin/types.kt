@@ -932,7 +932,7 @@ data class Tool(
      */
     val description: String?,
     /**
-     * A JSON  object defining the expected parameters for the tool.
+     * A JSON object defining the expected parameters for the tool.
      */
     val input: Input,
 ) {
