@@ -9,12 +9,12 @@ import JSONRPCResponse
 import LATEST_PROTOCOL_VERSION
 import SUPPORTED_PROTOCOL_VERSIONS
 import ServerCapabilities
-import io.mockk.coVerify
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonObject
 import shared.Transport
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class ClientTest {
@@ -116,5 +116,54 @@ class ClientTest {
             Implementation("test", "1.0"),
             client.getServerVersion()
         )
+    }
+
+    @Test
+    fun `should reject unsupported protocol version`() = runTest {
+        var closed = false
+        val clientTransport = object : Transport {
+            override suspend fun start() {}
+
+            override suspend fun send(message: JSONRPCMessage) {
+                if (message !is InitializeRequest) return
+                val result = InitializeResult(
+                    protocolVersion = "invalid-version",
+                    capabilities = ServerCapabilities(),
+                    serverInfo = Implementation(
+                        name = "test",
+                        version = "1.0"
+                    )
+                )
+
+                val response = JSONRPCResponse(
+                    id = message.id,
+                    result = result
+                )
+
+                onMessage?.invoke(response)
+            }
+
+            override suspend fun close() {
+                closed = true
+            }
+
+            override var onClose: (() -> Unit)? = null
+            override var onError: ((Throwable) -> Unit)? = null
+            override var onMessage: (suspend (JSONRPCMessage) -> Unit)? = null
+        }
+
+        val client = Client(
+            clientInfo = Implementation(
+                name = "test client",
+                version = "1.0"
+            ),
+            options = ClientOptions()
+        )
+
+        assertFailsWith<IllegalStateException>("Server's protocol version is not supported: invalid-version") {
+            client.connect(clientTransport)
+        }
+
+        assertTrue(closed)
     }
 }
