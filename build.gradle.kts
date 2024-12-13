@@ -2,7 +2,7 @@
 plugins {
     kotlin("jvm") version "2.0.21"
     kotlin("plugin.serialization") version "2.0.21"
-    id("org.jetbrains.kotlinx.atomicfu") version "0.26.1"
+//    id("org.jetbrains.kotlinx.atomicfu") version "0.26.1"
 }
 
 group = "org.jetbrains.mcp"

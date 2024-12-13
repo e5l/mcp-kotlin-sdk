@@ -10,12 +10,12 @@ import io.ktor.server.request.contentType
 import io.ktor.server.request.receiveText
 import io.ktor.server.response.respondText
 import io.ktor.server.sse.ServerSSESession
-import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.job
 import kotlinx.serialization.encodeToString
 import shared.McpJson
 import shared.Transport
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -30,7 +30,7 @@ class SSEServerTransport(
     private val endpoint: String,
     private val session: ServerSSESession
 ) : Transport {
-    private val initialized = atomic(false)
+    private val initialized = AtomicBoolean(false)
 
     @OptIn(ExperimentalUuidApi::class)
     val sessionId: String = Uuid.random().toString()
@@ -45,7 +45,7 @@ class SSEServerTransport(
      * This should be called when a GET request is made to establish the SSE stream.
      */
     override suspend fun start() {
-        if (!initialized.compareAndSet(expect = false, update = true)) {
+        if (!initialized.compareAndSet(false, true)) {
             throw error("SSEServerTransport already started! If using Server class, note that connect() calls start() automatically.")
         }
 
@@ -67,7 +67,7 @@ class SSEServerTransport(
      * This should be called when a POST request is made to send a message to the server.
      */
     suspend fun handlePostMessage(call: ApplicationCall) {
-        if (!initialized.value) {
+        if (!initialized.get()) {
             val message = "SSE connection not established";
             call.respondText(message, status = HttpStatusCode.InternalServerError)
             onError?.invoke(IllegalStateException(message))
@@ -116,7 +116,7 @@ class SSEServerTransport(
     }
 
     override suspend fun send(message: JSONRPCMessage) {
-        if (!initialized.value) {
+        if (!initialized.get()) {
             throw error("Not connected")
         }
 
