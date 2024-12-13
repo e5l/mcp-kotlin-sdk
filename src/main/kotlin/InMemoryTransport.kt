@@ -1,6 +1,4 @@
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.SupervisorJob
 import shared.Transport
 
@@ -31,30 +29,23 @@ class InMemoryTransport : Transport {
         }
     }
 
-    override fun start(): Deferred<Unit> {
+    override suspend fun start() {
         // Process any messages that were queued before start was called
         while (messageQueue.isNotEmpty()) {
             messageQueue.removeFirstOrNull()?.let { message ->
                 onMessage?.invoke(scope, message) // todo?
             }
         }
-        return CompletableDeferred(Unit)
     }
 
-    override fun close(): Deferred<Unit> {
-        val deferred = CompletableDeferred<Unit>()
-        try {
-            val other = otherTransport
-            otherTransport = null
-            other?.close()
-            onClose?.invoke()
-        } catch (e: Throwable) {
-            deferred.completeExceptionally(e)
-        }
-        return deferred
+    override suspend fun close() {
+        val other = otherTransport
+        otherTransport = null
+        other?.close()
+        onClose?.invoke()
     }
 
-    override fun send(message: JSONRPCMessage): Deferred<Unit> {
+    override suspend fun send(message: JSONRPCMessage) {
         val other = otherTransport ?: throw IllegalStateException("Not connected")
 
         if (other.onMessage != null) {
@@ -62,6 +53,5 @@ class InMemoryTransport : Transport {
         } else {
             other.messageQueue.add(message)
         }
-        return CompletableDeferred()
     }
 }
