@@ -4,6 +4,7 @@ import JSONRPCMessage
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.consumeEach
+import kotlinx.io.IOException
 import kotlinx.io.Sink
 import kotlinx.io.Source
 import kotlinx.io.asInputStream
@@ -141,8 +142,10 @@ class StdioClientTransport(
 //                        processReadBuffer()
                     }
                 } catch (e: Throwable) {
-                    if (isActive) {
-                        onError?.invoke(e)
+                    when {
+                        e is IOException && e.message?.contains("Underlying source is closed") == true -> {}
+                        e is CancellationException -> {}
+                        else -> { onError?.invoke(e) }
                     }
                 } finally {
                     inputStream.close()
