@@ -95,11 +95,11 @@ fun Request.toJSON(): JSONRPCRequest {
         is ServerRequest -> McpJson.encodeToJsonElement<ServerRequest>(this)
         is CustomRequest -> McpJson.encodeToJsonElement<CustomRequest>(this)
         else -> error("Unknown type: ${this::class.qualifiedName}")
-    }
+    } as JsonObject
 
     return JSONRPCRequest(
         method = method.value,
-        params = encoded,
+        params = encoded["params"]!!,
         jsonrpc = JSONRPC_VERSION,
     )
 }
