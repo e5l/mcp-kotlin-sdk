@@ -1,4 +1,5 @@
 #! /usr/bin/env node
+
 import * as net from 'net';
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { Readable, Writable } from 'stream';
@@ -41,7 +42,6 @@ const server = net.createServer((socket) => {
     const stdin = new Readable();
     const stdout = new Writable();
 
-    handleConnection(stdin, stdout);
     // Pipe socket data to stdin
     socket.on('data', (chunk) => {
         console.log("Socket data", chunk);
@@ -55,12 +55,15 @@ const server = net.createServer((socket) => {
 
     // Write stdout to socket
     stdout._write = (chunk, encoding, callback) => {
+        console.log("Socket data (string):", chunk.toString());
         socket.write(chunk, encoding, callback);
     };
 
     socket.on('error', (err) => {
         console.error('Socket error:', err);
     });
+
+    handleConnection(stdin, stdout);
 });
 
 server.listen(PORT, () => {
