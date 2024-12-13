@@ -184,6 +184,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
      * The Protocol object assumes ownership of the Transport, replacing any callbacks that have already been set, and expects that it is the only user of the Transport instance going forward.
      */
     open suspend fun connect(transport: Transport) {
+        this.transport = transport
         transport.onClose = {
             this.onClose()
         }
@@ -198,6 +199,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
                 is JSONRPCRequest -> onRequest(message)
                 is JSONRPCNotification -> onNotification(message)
                 is JSONRPCError -> error(message.error.message)
+                else -> error("Unknown message type: ${Json.encodeToString(message)}")
             }
         }
 
@@ -335,7 +337,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
      * Closes the connection.
      */
     suspend fun close() {
-        this.transport!!.close()
+        transport?.close()
     }
 
     /**
@@ -397,13 +399,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
 //                }
         }
 
-        var timeoutId: Any? = null
-
         responseHandlers.set(messageId, { response, error ->
-            if (timeoutId !== null) {
-                clearTimeout(timeoutId)
-            }
-
             if (options?.signal?.aborted == true) {
                 return@set
             }
@@ -456,19 +452,10 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
     /**
      * Emits a notification, which is a one-way message that does not expect a response.
      */
-    suspend fun notification(notification: SendNotificationT) {
+    suspend fun notification(notification: JSONRPCNotification) {
         val transport = this.transport ?: error("Not connected")
-
         assertNotificationCapability(notification.method)
-
-
-        val jsonrpcNotification: JSONRPCNotification = TODO()
-        /**{
-        ...notification,
-        jsonrpc: "2.0",
-        }**/
-
-        transport.send(jsonrpcNotification)
+        transport.send(notification)
     }
 
     /**

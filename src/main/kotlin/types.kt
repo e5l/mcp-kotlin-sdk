@@ -125,7 +125,7 @@ sealed class JSONRPCNotification : Notification, JSONRPCMessage {
  * A successful (non-error) response to a request.
  */
 @Serializable
-data class JSONRPCResponse(
+open class JSONRPCResponse(
     val id: RequestId,
     val result: RequestResult,
 ) : JSONRPCMessage {
@@ -235,15 +235,15 @@ data class ClientCapabilities(
     /**
      * Experimental, non-standard capabilities that the client supports.
      */
-    val experimental: JsonObject?,
+    val experimental: JsonObject? = null,
     /**
      * Present if the client supports sampling from an LLM.
      */
-    val sampling: JsonObject?,
+    val sampling: JsonObject? = null,
     /**
      * Present if the client supports listing roots.
      */
-    val roots: Roots?,
+    val roots: Roots? = null,
 ) {
     @Serializable
     data class Roots(
@@ -303,23 +303,23 @@ data class ServerCapabilities(
     /**
      * Experimental, non-standard capabilities that the server supports.
      */
-    val experimental: JsonObject?,
+    val experimental: JsonObject? = null,
     /**
      * Present if the server supports sending log messages to the client.
      */
-    val logging: JsonObject?,
+    val logging: JsonObject? = null,
     /**
      * Present if the server offers any prompt templates.
      */
-    val prompts: Prompts?,
+    val prompts: Prompts? = null,
     /**
      * Present if the server offers any resources to read.
      */
-    val resources: Resources?,
+    val resources: Resources? = null,
     /**
      * Present if the server offers any tools to call.
      */
-    val tools: Tools?,
+    val tools: Tools? = null,
 ) {
     @Serializable
     data class Prompts(
@@ -358,8 +358,8 @@ data class InitializeResult(
     /**
      * The version of the Model Context Protocol that the server wants to use. This may not match the version that the client requested. If the client cannot support this version, it MUST disconnect.
      */
-    val protocolVersion: String,
-    val capabilities: ServerCapabilities,
+    val protocolVersion: String = LATEST_PROTOCOL_VERSION,
+    val capabilities: ServerCapabilities = ServerCapabilities(),
     val serverInfo: Implementation,
     override val _meta: JsonObject? = null,
 ) : ServerResult

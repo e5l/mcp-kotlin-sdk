@@ -13,7 +13,7 @@ class InMemoryTransport : Transport {
 
     override var onClose: (() -> Unit)? = null
     override var onError: ((Throwable) -> Unit)? = null
-    override var onMessage: (suspend (CoroutineScope.(JSONRPCMessage) -> Unit))? = null
+    override var onMessage: (suspend ((JSONRPCMessage) -> Unit))? = null
 
     /**
      * Creates a pair of linked in-memory transports that can communicate with each other.
@@ -33,7 +33,7 @@ class InMemoryTransport : Transport {
         // Process any messages that were queued before start was called
         while (messageQueue.isNotEmpty()) {
             messageQueue.removeFirstOrNull()?.let { message ->
-                onMessage?.invoke(scope, message) // todo?
+                onMessage?.invoke(message) // todo?
             }
         }
     }
@@ -49,7 +49,7 @@ class InMemoryTransport : Transport {
         val other = otherTransport ?: throw IllegalStateException("Not connected")
 
         if (other.onMessage != null) {
-            other.onMessage?.invoke(scope, message) // todo?
+            other.onMessage?.invoke(message) // todo?
         } else {
             other.messageQueue.add(message)
         }

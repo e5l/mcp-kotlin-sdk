@@ -83,7 +83,7 @@ class StdioClientTransport(
 
     override var onClose: (() -> Unit)? = null
     override var onError: ((Throwable) -> Unit)? = null
-    override var onMessage: (suspend (CoroutineScope.(JSONRPCMessage) -> Unit))? = null
+    override var onMessage: (suspend ((JSONRPCMessage) -> Unit))? = null
 
     override suspend fun start() {
         if (started) {
@@ -182,7 +182,7 @@ class StdioClientTransport(
         while (true) {
             val msg = readBuffer.readMessage() ?: break
             try {
-                onMessage?.invoke(scope, msg)
+                onMessage?.invoke(msg)
             } catch (e: Throwable) {
                 onError?.invoke(e)
             }
