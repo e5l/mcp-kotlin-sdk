@@ -199,13 +199,160 @@ internal object RequestPolymorphicSerializer :
     }
 }
 
+/**
+ * Server messages schemas
+ *
+ * We deserialize by unique keys
+ *
+ * ```
+ * CallToolResult {
+ *     content: PromptMessageContent {
+ *         type: String,
+ *     }
+ *     isError: Boolean?,
+ *     _meta: JsonObject,
+ * }
+ *
+ * CompatibilityCallToolResult {
+ *     content: PromptMessageContent {
+ *         type: String,
+ *     },
+ *     isError: Boolean?,
+ *     _meta: JsonObject,
+ *     toolResult: JsonObject,
+ * }
+ *
+ * CompleteResult {
+ *     completion: Completion {
+ *         values: Array<String>,
+ *         total: Int?,
+ *         hasMore: Boolean?,
+ *     }
+ *     _meta: JsonObject,
+ * }
+ *
+ * GetPromptResult {
+ *     description: String?,
+ *     messages: Array<PromptMessage>,
+ *     _meta: JsonObject,
+ * }
+ *
+ * InitializeResult {
+ *     protocolVersion: String,
+ *     capabilities: ServerCapabilities,
+ *     serverInfo: Implementation,
+ *     _meta: JsonObject,
+ * }
+ *
+ * ListPromptsResult {
+ *     prompts: Array<Prompt>,
+ *     nextCursor: Cursor?,
+ *     _meta: JsonObject,
+ * }
+ *
+ * ListResourceTemplatesResult {
+ *     resourceTemplates: Array<ResourceTemplate>,
+ *     nextCursor: Cursor?,
+ *     _meta: JsonObject,
+ * }
+ *
+ * ListResourcesResult {
+ *     resources: Array<Resource>,
+ *     nextCursor: Cursor?,
+ *     _meta: JsonObject,
+ * }
+ *
+ * ListToolsResult {
+ *     tools: Array<Tool>,
+ *     nextCursor: Cursor?,
+ *     _meta: JsonObject,
+ * }
+ *
+ * ReadResourceResult {
+ *     contents: Array<ResourceContents>,
+ *     _meta: JsonObject,
+ * }
+ * ```
+ */
+private fun selectServerResultDeserializer(element: JsonElement): DeserializationStrategy<ServerResult>? {
+    val jsonObject = element.jsonObject
+    return when {
+        jsonObject.contains("tools") -> ListToolsResult.serializer()
+        jsonObject.contains("resources") -> ListResourcesResult.serializer()
+        jsonObject.contains("resourceTemplates") -> ListResourceTemplatesResult.serializer()
+        jsonObject.contains("prompts") -> ListPromptsResult.serializer()
+        jsonObject.contains("capabilities") -> InitializeResult.serializer()
+        jsonObject.contains("description") -> GetPromptResult.serializer()
+        jsonObject.contains("completion") -> CompleteResult.serializer()
+        jsonObject.contains("toolResult") -> CompatibilityCallToolResult.serializer()
+        jsonObject.contains("contents") -> ReadResourceResult.serializer()
+        jsonObject.contains("content") -> CallToolResult.serializer()
+        else -> null
+    }
+}
+
+/**
+ * Client messages schemas
+ *
+ * We deserialize by unique keys
+ *
+ * ```
+ * CreateMessageResult {
+ *     model: String,
+ *     stopReason: StopReason?,
+ *     role: Role,
+ *     content: PromptMessageContentTextOrImage,
+ *     _meta: JsonObject,
+ * }
+ *
+ * ListRootsResult {
+ *     roots: Array<Root>,
+ *     _meta: JsonObject,
+ * }
+ *```
+ */
+private fun selectClientResultDeserializer(element: JsonElement): DeserializationStrategy<ClientResult>? {
+    val jsonObject = element.jsonObject
+    return when {
+        jsonObject.contains("model") -> CreateMessageResult.serializer()
+        jsonObject.contains("roots") -> ListRootsResult.serializer()
+        else -> null
+    }
+}
+
+internal object ServerResultPolymorphicSerializer :
+    JsonContentPolymorphicSerializer<ServerResult>(ServerResult::class) {
+    override fun selectDeserializer(element: JsonElement): DeserializationStrategy<ServerResult> {
+        return selectServerResultDeserializer(element)
+            ?: EmptyRequestResult.serializer()
+    }
+}
+
+internal object ClientResultPolymorphicSerializer :
+    JsonContentPolymorphicSerializer<ClientResult>(ClientResult::class) {
+    override fun selectDeserializer(element: JsonElement): DeserializationStrategy<ClientResult> {
+        return selectClientResultDeserializer(element)
+            ?: EmptyRequestResult.serializer()
+    }
+}
+
+internal object RequestResultPolymorphicSerializer :
+    JsonContentPolymorphicSerializer<RequestResult>(RequestResult::class) {
+    override fun selectDeserializer(element: JsonElement): DeserializationStrategy<RequestResult> {
+        return selectClientResultDeserializer(element)
+            ?: selectServerResultDeserializer(element)
+            ?: EmptyRequestResult.serializer()
+    }
+}
+
 internal object JSONRPCMessagePolymorphicSerializer :
     JsonContentPolymorphicSerializer<JSONRPCMessage>(JSONRPCMessage::class) {
     override fun selectDeserializer(element: JsonElement): DeserializationStrategy<JSONRPCMessage> {
+        val jsonObject = element.jsonObject
         return when {
-            element.jsonObject.contains("message") -> JSONRPCError.serializer()
-            !element.jsonObject.contains("method") -> JSONRPCResponse.serializer()
-            element.jsonObject.contains("id") -> JSONRPCRequest.serializer()
+            jsonObject.contains("message") -> JSONRPCError.serializer()
+            !jsonObject.contains("method") -> JSONRPCResponse.serializer()
+            jsonObject.contains("id") -> JSONRPCRequest.serializer()
             else -> JSONRPCNotification.serializer()
         }
     }
