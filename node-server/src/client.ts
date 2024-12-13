@@ -19,7 +19,7 @@ client.connect(PORT, HOST, () => {
     console.log('Connected to server');
 
     output._write = (chunk, encoding, callback) => {
-        console.log(chunk.toString());
+        console.log(chunk.toString('utf-8'));
         input.push(chunk);
         callback();
     }

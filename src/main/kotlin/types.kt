@@ -3,6 +3,7 @@
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.json.*
+import shared.McpJson
 import java.util.concurrent.atomic.AtomicLong
 
 const val LATEST_PROTOCOL_VERSION = "2024-11-05"
@@ -90,9 +91,9 @@ sealed interface Request {
 
 fun Request.toJSON(): JSONRPCRequest {
     val encoded = when(this) {
-        is ClientRequest -> Json.encodeToJsonElement<ClientRequest>(this)
-        is ServerRequest -> Json.encodeToJsonElement<ServerRequest>(this)
-        is CustomRequest -> Json.encodeToJsonElement<CustomRequest>(this)
+        is ClientRequest -> McpJson.encodeToJsonElement<ClientRequest>(this)
+        is ServerRequest -> McpJson.encodeToJsonElement<ServerRequest>(this)
+        is CustomRequest -> McpJson.encodeToJsonElement<CustomRequest>(this)
         else -> error("Unknown type: ${this::class.qualifiedName}")
     }
 
@@ -113,7 +114,7 @@ sealed interface Notification {
 }
 
 fun Notification.toJSON(): JSONRPCNotification {
-    val encoded = Json.encodeToJsonElement<Notification>(this)
+    val encoded = McpJson.encodeToJsonElement<Notification>(this)
     return JSONRPCNotification(
         method.value,
         params = encoded
