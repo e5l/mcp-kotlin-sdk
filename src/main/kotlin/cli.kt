@@ -53,6 +53,20 @@ private fun runServer() {
         }
     )
 
+    server.setRequestHandler<ListToolsResult>(Method.Defined.ToolsList) { request, _ ->
+        val tools = arrayOf(
+            Tool(
+                name = "Test Tool",
+                description = "A test tool",
+                input = Tool.Input(),
+            )
+        )
+        ListToolsResult(
+            tools = tools,
+            nextCursor = null,
+        )
+    }
+
     val transport = StdioServerTransport()
 
     val err = System.err
