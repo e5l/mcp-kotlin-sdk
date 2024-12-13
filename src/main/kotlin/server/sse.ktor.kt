@@ -125,7 +125,6 @@ private suspend fun Route.createMcpServer(
                 prompts = ServerCapabilities.Prompts(listChanged = null),
                 resources = ServerCapabilities.Resources(subscribe = null, listChanged = null),
                 tools = ServerCapabilities.Tools(listChanged = null),
-                logging = null  // or a valid empty JSON object if required
             )
         ),
         onCloseCallback = {

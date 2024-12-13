@@ -36,12 +36,7 @@ class WebSocketTransportTest : BaseTransportTest() {
 
         val client = createClient {
             install(io.ktor.client.plugins.websocket.WebSockets)
-        }.mcpWebSocketTransport {
-            url {
-                host = "localhost"
-                port = PORT
-            }
-        }
+        }.mcpWebSocketTransport()
 
         testClientRead(client)
     }
