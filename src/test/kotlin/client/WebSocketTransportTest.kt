@@ -2,6 +2,7 @@ package client
 
 import io.ktor.server.testing.*
 import io.ktor.server.websocket.*
+import kotlinx.coroutines.CompletableDeferred
 import org.junit.jupiter.api.Test
 import server.mcpWebSocket
 import server.mcpWebSocketTransport
@@ -25,12 +26,16 @@ class WebSocketTransportTest : BaseTransportTest() {
 
     @Test
     fun `should read messages`() = testApplication {
+        val clientFinished = CompletableDeferred<Unit>()
+
         install(WebSockets)
         routing {
             mcpWebSocketTransport {
                 onMessage = {
                     send(it)
                 }
+
+                clientFinished.await()
             }
         }
 
@@ -39,5 +44,7 @@ class WebSocketTransportTest : BaseTransportTest() {
         }.mcpWebSocketTransport()
 
         testClientRead(client)
+
+        clientFinished.complete(Unit)
     }
 }

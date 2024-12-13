@@ -27,21 +27,25 @@ fun Route.mcpWebSocket(
 }
 
 fun Route.mcpWebSocketTransport(
-    options: ServerOptions? = null,
     handler: suspend WebSocketMcpServerTransport.() -> Unit = {},
 ) {
     webSocket {
-        handler(createMcpTransport(this))
+        val transport = createMcpTransport(this)
+        transport.start()
+        handler(transport)
+        transport.close()
     }
 }
 
 fun Route.mcpWebSocketTransport(
     path: String,
-    options: ServerOptions? = null,
     handler: suspend WebSocketMcpServerTransport.() -> Unit = {},
 ) {
     webSocket(path) {
-        handler(createMcpTransport(this))
+        val transport = createMcpTransport(this)
+        transport.start()
+        handler(transport)
+        transport.close()
     }
 }
 

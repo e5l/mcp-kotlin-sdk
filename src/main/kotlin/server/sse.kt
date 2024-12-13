@@ -85,7 +85,7 @@ class SseMcpServerTransport(
         try {
             handleMessage(body)
         } catch (e: Exception) {
-            call.respondText("Invalid message: $body, error: ${e.message}", status = HttpStatusCode.BadRequest)
+            call.respondText("Error handling message $body: ${e.message}", status = HttpStatusCode.BadRequest)
             return
         }
 
