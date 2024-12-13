@@ -3,18 +3,33 @@ package client
 import InitializedNotification
 import JSONRPCMessage
 import PingRequest
+import io.ktor.utils.io.streams.asInput
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.runTest
+import kotlinx.io.Sink
+import kotlinx.io.Source
+import kotlinx.io.asSink
+import kotlinx.io.asSource
+import kotlinx.io.buffered
 import toJSON
 import kotlin.test.*
 
 
 class StdioClientTransportTest {
-    private val serverParameters = StdioServerParameters("/usr/bin/tee")
-
     @Test
     fun `should start then close cleanly`() = runTest {
-        val client = StdioClientTransport(serverParameters)
+        // Run process "/usr/bin/tee"
+        val processBuilder = ProcessBuilder("/usr/bin/tee")
+        val process = processBuilder.start()
+
+        val input: Source = process.inputStream.asInput()
+        val output: Sink = process.outputStream.asSink().buffered()
+
+        val client = StdioClientTransport(
+            input = input,
+            output = output
+        )
+
         client.onError = { error ->
             fail("Unexpected error: $error")
         }
@@ -27,11 +42,22 @@ class StdioClientTransportTest {
 
         client.close()
         assertTrue(didClose, "Transport should be closed after close() call")
+
+        process.destroy()
     }
 
     @Test
     fun `should read messages`() = runTest {
-        val client = StdioClientTransport(serverParameters)
+        val processBuilder = ProcessBuilder("/usr/bin/tee")
+        val process = processBuilder.start()
+
+        val input: Source = process.inputStream.asSource().buffered()
+        val output: Sink = process.outputStream.asSink().buffered()
+
+        val client = StdioClientTransport(
+            input = input,
+            output = output
+        )
         client.onError = { error -> fail("Unexpected error: $error") }
 
         val messages = listOf<JSONRPCMessage>(
@@ -44,19 +70,22 @@ class StdioClientTransportTest {
 
         client.onMessage = { message ->
             readMessages.add(message)
-
-            if (message == messages[1]) {
+            if (message == messages.last()) {
                 finished.complete(Unit)
             }
         }
 
         client.start()
-        client.send(messages[0])
-        client.send(messages[1])
+
+        for (message in messages) {
+            client.send(message)
+        }
 
         finished.await()
+
         assertEquals(messages, readMessages, "Assert messages received")
 
         client.close()
+        process.destroy()
     }
 }
