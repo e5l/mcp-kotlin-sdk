@@ -10,7 +10,9 @@
     "scripts": {
         "build": "tsc --outDir dist && shx chmod +x dist/*.js",
         "prepare": "npm run build",
-        "watch": "tsc --watch --outDir dist"
+        "watch": "tsc --watch --outDir dist",
+        "run_server": "dist/server.js",
+        "run_client": "dist/client.js"
     },
     "dependencies": {
         "@modelcontextprotocol/sdk": "1.0.3",

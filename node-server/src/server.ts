@@ -44,7 +44,8 @@ const server = net.createServer((socket) => {
 
     // Pipe socket data to stdin
     socket.on('data', (chunk) => {
-        console.log("Socket data", chunk);
+        const decoded = chunk.toString("utf-8")
+        console.log("Socket data", decoded);
         stdin.push(chunk);
     });
 
