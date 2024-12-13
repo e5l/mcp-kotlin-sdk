@@ -1,7 +1,6 @@
 package shared
 
 import CancelledNotification
-import EmptyResult
 import ErrorCode
 import JSONRPCError
 import JSONRPCNotification
@@ -21,6 +20,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.encodeToJsonElement
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -121,10 +121,10 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
     var transport: Transport? = null
         private set
 
-    private val requestHandlers: MutableMap<Method, suspend (request: JSONRPCRequest, extra: RequestHandlerExtra) -> SendResultT?> =
+    private val requestHandlers: MutableMap<String, suspend (request: JSONRPCRequest, extra: RequestHandlerExtra) -> SendResultT?> =
         mutableMapOf()
     private val requestHandlerAbortControllers: MutableMap<RequestId, AbortController> = mutableMapOf()
-    val notificationHandlers: MutableMap<Method, (notification: JSONRPCNotification) -> Deferred<Unit>> =
+    val notificationHandlers: MutableMap<String, suspend (notification: JSONRPCNotification) -> Unit> =
         mutableMapOf()
 
     @PublishedApi
@@ -156,7 +156,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
     /**
      * A handler to invoke for any notification types that do not have their own handler installed.
      */
-    var fallbackNotificationHandler: ((notification: Notification) -> Deferred<Unit>)? = null
+    var fallbackNotificationHandler: (suspend (notification: JSONRPCNotification) -> Unit)? = null
 
     init {
         setNotificationHandler<CancelledNotification>(Method.Defined.NotificationsCancelled) { notification ->
@@ -197,7 +197,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
                 is JSONRPCResponse -> onResponse(message, null)
                 is JSONRPCRequest -> onRequest(message)
                 is JSONRPCNotification -> onNotification(message)
-                is JSONRPCError -> error(message.error.message)
+                is JSONRPCError -> error(message.message)
                 else -> error("Unknown message type: ${Json.encodeToString(message)}")
             }
         }
@@ -221,7 +221,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
         onerror(error)
     }
 
-    private fun onNotification(notification: JSONRPCNotification) {
+    private suspend fun onNotification(notification: JSONRPCNotification) {
         val function = notificationHandlers[notification.method]
         val property = fallbackNotificationHandler
         val handler = function ?: property
@@ -323,9 +323,9 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
         } else {
             check(error != null)
             val error = McpError(
-                error.error.code.code,
-                error.error.message,
-                error.error.data,
+                error.code.code,
+                error.message,
+                error.data,
             )
 
             handler(null, error)
@@ -419,11 +419,15 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
             responseHandlers.remove(messageId)
             progressHandlers.remove(messageId)
 
-             transport.send(
-                CancelledNotification(
-                    params = CancelledNotification.Params(requestId = messageId, reason = reason.message ?: "Unknown")
-                )
+            val notification = CancelledNotification(
+                params = CancelledNotification.Params(requestId = messageId, reason = reason.message ?: "Unknown")
             )
+
+            val serialized = JSONRPCNotification(
+                notification.method.value,
+                params = Json.encodeToJsonElement(notification.params) as JsonObject
+            )
+            transport.send(serialized)
 
             result.completeExceptionally(reason)
             Unit
@@ -454,7 +458,12 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
     suspend fun notification(notification: SendNotificationT) {
         val transport = this.transport ?: error("Not connected")
         assertNotificationCapability(notification.method)
-        transport.send(notification)
+
+        val message = JSONRPCNotification(
+            notification.method.value,
+            params = Json.encodeToJsonElement<Notification>(notification) as JsonObject,
+        )
+        transport.send(message)
     }
 
     /**
@@ -462,10 +471,13 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
      *
      * Note that this will replace any previous request handler for the same method.
      */
-    fun <T: JSONRPCRequest> setRequestHandler(method: Method, block: suspend (T, RequestHandlerExtra) -> SendResultT?) {
+    fun <T> setRequestHandler(
+        method: Method,
+        block: suspend (T, RequestHandlerExtra) -> SendResultT?
+    ) {
         assertRequestHandlerCapability(method)
 
-        requestHandlers[method] = { a, b ->
+        requestHandlers[method.value] = { a, b ->
             block(a as T, b)
         }
     }
@@ -474,7 +486,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
      * Removes the request handler for the given method.
      */
     fun removeRequestHandler(method: Method) {
-        requestHandlers.remove(method)
+        requestHandlers.remove(method.value)
     }
 
     /**
@@ -483,7 +495,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
      * Note that this will replace any previous notification handler for the same method.
      */
     fun <T : Notification> setNotificationHandler(method: Method, handler: (notification: T) -> Deferred<Unit>) {
-        this.notificationHandlers[method] = {
+        this.notificationHandlers[method.value] = {
             handler(it as T)
         }
     }
@@ -492,6 +504,6 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
      * Removes the notification handler for the given method.
      */
     fun removeNotificationHandler(method: Method) {
-        this.notificationHandlers.remove(method)
+        this.notificationHandlers.remove(method.value)
     }
 }

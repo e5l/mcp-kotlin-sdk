@@ -5,6 +5,7 @@ import JSONRPCMessage
 import PingRequest
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.runTest
+import toJSON
 import kotlin.test.*
 
 
@@ -34,8 +35,8 @@ class StdioClientTransportTest {
         client.onError = { error -> fail("Unexpected error: $error") }
 
         val messages = listOf<JSONRPCMessage>(
-            PingRequest(),
-            InitializedNotification()
+            PingRequest().toJSON(),
+            InitializedNotification().toJSON()
         )
 
         val readMessages = mutableListOf<JSONRPCMessage>()
