@@ -104,7 +104,7 @@ fun Request.toJSON(): JSONRPCRequest {
 }
 
 @Serializable
-open class CustomRequest(override val method: Method, override val params: WithMeta?) : Request
+open class CustomRequest(override val method: Method, override val params: WithMeta? = null) : Request
 
 @Serializable
 sealed interface Notification {
