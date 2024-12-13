@@ -1,5 +1,6 @@
 @file:Suppress("unused", "EnumEntryName")
 
+import JSONRPCResponse
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.json.JsonObject
@@ -95,6 +96,11 @@ sealed interface Notification {
 
 @Serializable
 sealed interface RequestResult : WithMeta
+
+@Serializable
+object EmptyRequestResult : RequestResult {
+    override val _meta: JsonObject? = null
+}
 
 /**
  * A uniquely identifying ID for a request in JSON-RPC.
@@ -1179,7 +1185,7 @@ data class CreateMessageResult(
     /**
      * The reason why sampling stopped.
      */
-    val stopReason: StopReason?,
+    val stopReason: StopReason? = null,
     val role: Role,
     val content: PromptMessageContentTextOrImage,
     override val _meta: JsonObject? = null,

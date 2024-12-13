@@ -1,6 +1,7 @@
 package shared
 
 import CancelledNotification
+import EmptyResult
 import ErrorCode
 import JSONRPCError
 import JSONRPCNotification
@@ -120,7 +121,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
     var transport: Transport? = null
         private set
 
-    private val requestHandlers: MutableMap<Method, (request: JSONRPCRequest, extra: RequestHandlerExtra) -> Deferred<SendResultT>> =
+    private val requestHandlers: MutableMap<Method, suspend (request: JSONRPCRequest, extra: RequestHandlerExtra) -> SendResultT?> =
         mutableMapOf()
     private val requestHandlerAbortControllers: MutableMap<RequestId, AbortController> = mutableMapOf()
     val notificationHandlers: MutableMap<Method, (notification: JSONRPCNotification) -> Deferred<Unit>> =
@@ -150,7 +151,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
     /**
      * A handler to invoke for any request types that do not have their own handler installed.
      */
-    var fallbackRequestHandler: ((request: JSONRPCRequest, extra: RequestHandlerExtra) -> Deferred<SendResultT>)? = null
+    var fallbackRequestHandler: (suspend (request: JSONRPCRequest, extra: RequestHandlerExtra) -> SendResultT?)? = null
 
     /**
      * A handler to invoke for any notification types that do not have their own handler installed.
@@ -171,10 +172,8 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
             COMPLETED
         }
 
-        setRequestHandler<PingRequest>(Method.Defined.Ping) { _request ->
-            // Automatic pong by default.
-            // TODO
-            COMPLETED
+        setRequestHandler<PingRequest>(Method.Defined.Ping) { request, _ ->
+            null
         }
     }
 
@@ -359,7 +358,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
      *
      * This should be implemented by subclasses.
      */
-    protected abstract fun assertRequestHandlerCapability(method: String)
+    protected abstract fun assertRequestHandlerCapability(method: Method)
 
     fun clearTimeout(id: Any?) {
         TODO()
@@ -463,10 +462,11 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
      *
      * Note that this will replace any previous request handler for the same method.
      */
-    fun <T : JSONRPCRequest> setRequestHandler(method: Method, block: (T) -> Deferred<Unit>) {
+    fun <T: JSONRPCRequest> setRequestHandler(method: Method, block: suspend (T, RequestHandlerExtra) -> SendResultT?) {
+        assertRequestHandlerCapability(method)
+
         requestHandlers[method] = { a, b ->
-            // TODO: b
-            block(a as T) as Deferred<SendResultT>
+            block(a as T, b)
         }
     }
 

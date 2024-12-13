@@ -69,7 +69,7 @@ class ClientOptions(
  */
 open class Client(
     private val clientInfo: Implementation,
-    options: ClientOptions
+    options: ClientOptions = ClientOptions()
 ) : Protocol<ClientRequest, ClientNotification, ClientResult>(options) {
 
     private var serverCapabilities: ServerCapabilities? = null
@@ -213,9 +213,9 @@ open class Client(
         }
     }
 
-    override fun assertRequestHandlerCapability(method: String) {
+    override fun assertRequestHandlerCapability(method: Method) {
         when (method) {
-            "sampling/createMessage" -> {
+            Method.Defined.SamplingCreateMessage -> {
                 if (capabilities.sampling == null) {
                     throw IllegalStateException(
                         "Client does not support sampling capability (required for $method)"
@@ -223,7 +223,7 @@ open class Client(
                 }
             }
 
-            "roots/list" -> {
+            Method.Defined.RootsList -> {
                 if (capabilities.roots == null) {
                     throw IllegalStateException(
                         "Client does not support roots capability (required for $method)"
@@ -231,9 +231,10 @@ open class Client(
                 }
             }
 
-            "ping" -> {
+            Method.Defined.Ping -> {
                 // No capability required
             }
+            else -> {}
         }
     }
 
