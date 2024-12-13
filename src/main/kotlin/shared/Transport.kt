@@ -1,7 +1,6 @@
 package shared
 
 import JSONRPCMessage
-import kotlinx.coroutines.CoroutineScope
 
 /**
  * Describes the minimal contract for a MCP transport that a client or server can communicate over.
