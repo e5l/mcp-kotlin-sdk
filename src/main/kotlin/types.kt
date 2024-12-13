@@ -1,11 +1,9 @@
 @file:Suppress("unused", "EnumEntryName")
 
-import JSONRPCResponse
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
 const val LATEST_PROTOCOL_VERSION = "2024-11-05"
@@ -38,6 +36,9 @@ sealed interface WithMeta {
     @Suppress("PropertyName")
     val _meta: JsonObject?
 }
+
+@Serializable
+class CustomMeta(override val _meta: JsonObject) : WithMeta
 
 @Serializable(with = RequestMethodSerializer::class)
 sealed interface Method {
@@ -72,7 +73,7 @@ sealed interface Method {
     }
 
     @Serializable
-    data class Unknown(override val value: String) : Method
+    data class Custom(override val value: String) : Method
 }
 
 @Serializable
@@ -89,6 +90,9 @@ sealed interface Request {
 }
 
 @Serializable
+open class CustomRequest(override val method: Method, override val params: WithMeta?) : Request
+
+@Serializable
 sealed interface Notification {
     val method: Method
     val params: WithMeta?
@@ -96,6 +100,9 @@ sealed interface Notification {
 
 @Serializable
 sealed interface RequestResult : WithMeta
+
+@Serializable
+abstract class CustomResult : RequestResult
 
 @Serializable
 object EmptyRequestResult : RequestResult {
@@ -114,10 +121,12 @@ sealed interface JSONRPCMessage
  * A request that expects a response.
  */
 @Serializable
-sealed class JSONRPCRequest : Request, JSONRPCMessage {
-    val jsonrpc: String = JSONRPC_VERSION
-    val id: RequestId = REQUEST_MESSAGE_ID.incrementAndGet()
-}
+class JSONRPCRequest(
+    val method: String,
+    val params: JsonObject,
+    val jsonrpc: String = JSONRPC_VERSION,
+    val id: RequestId = REQUEST_MESSAGE_ID.incrementAndGet(),
+) : JSONRPCMessage
 
 /**
  * A notification which does not expect a response.
@@ -266,6 +275,8 @@ sealed interface ClientRequest : Request
 @Serializable(with = ClientNotificationPolymorphicSerializer::class)
 sealed interface ClientNotification : Notification
 
+abstract class CustomClientNotification : ClientNotification
+
 @Serializable
 sealed interface ClientResult : RequestResult
 
@@ -290,8 +301,9 @@ data class UnknownMethodRequestOrNotification(
 @Serializable
 data class InitializeRequest(
     override val params: Params,
-) : ClientRequest, JSONRPCRequest() {
+) : ClientRequest {
     override val method: Method = Method.Defined.Initialize
+
     @Serializable
     data class Params(
         /**
@@ -387,7 +399,7 @@ data class InitializedNotification(
 @Serializable
 data class PingRequest(
     override val params: WithMeta? = null,
-) : ServerRequest, ClientRequest, JSONRPCRequest() {
+) : ServerRequest, ClientRequest {
     override val method: Method = Method.Defined.Ping
 }
 
@@ -561,7 +573,7 @@ data class ResourceTemplate(
 @Serializable
 data class ListResourcesRequest(
     override val params: PaginatedRequest.Params? = null,
-) : ClientRequest, PaginatedRequest, JSONRPCRequest() {
+) : ClientRequest, PaginatedRequest {
     override val method: Method = Method.Defined.ResourcesList
 }
 
@@ -581,7 +593,7 @@ class ListResourcesResult(
 @Serializable
 data class ListResourceTemplatesRequest(
     override val params: PaginatedRequest.Params? = null,
-) : ClientRequest, PaginatedRequest, JSONRPCRequest() {
+) : ClientRequest, PaginatedRequest {
     override val method: Method = Method.Defined.ResourcesTemplatesList
 }
 
@@ -639,7 +651,7 @@ data class ResourceListChangedNotification(
 @Serializable
 data class SubscribeRequest(
     override val params: Params,
-) : ClientRequest, JSONRPCRequest() {
+) : ClientRequest {
     override val method: Method = Method.Defined.ResourcesSubscribe
 
     @Serializable
@@ -658,7 +670,7 @@ data class SubscribeRequest(
 @Serializable
 data class UnsubscribeRequest(
     override val params: Params,
-) : ClientRequest, JSONRPCRequest() {
+) : ClientRequest {
     override val method: Method = Method.Defined.ResourcesUnsubscribe
 
     @Serializable
@@ -735,7 +747,7 @@ class Prompt(
 @Serializable
 data class ListPromptsRequest(
     override val params: PaginatedRequest.Params? = null,
-) : ClientRequest, PaginatedRequest, JSONRPCRequest() {
+) : ClientRequest, PaginatedRequest {
     override val method: Method = Method.Defined.PromptsList
 }
 
@@ -755,7 +767,7 @@ class ListPromptsResult(
 @Serializable
 data class GetPromptRequest(
     override val params: Params,
-) : ClientRequest, JSONRPCRequest() {
+) : ClientRequest {
     override val method: Method = Method.Defined.PromptsGet
 
     @Serializable
@@ -914,7 +926,7 @@ data class Tool(
 @Serializable
 data class ListToolsRequest(
     override val params: PaginatedRequest.Params? = null,
-) : ClientRequest, PaginatedRequest, JSONRPCRequest() {
+) : ClientRequest, PaginatedRequest {
     override val method: Method = Method.Defined.ToolsList
 }
 
@@ -963,7 +975,7 @@ data class CompatibilityCallToolResult(
 @Serializable
 data class CallToolRequest(
     override val params: Params,
-) : ClientRequest, JSONRPCRequest() {
+) : ClientRequest {
     override val method: Method = Method.Defined.ToolsCall
 
     @Serializable
@@ -1015,7 +1027,7 @@ data class LoggingMessageNotification(
     @Serializable
     data class SetLevelRequest(
         override val params: Params,
-    ) : ClientRequest, JSONRPCRequest() {
+    ) : ClientRequest {
         override val method: Method = Method.Defined.LoggingSetLevel
 
         @Serializable
@@ -1027,6 +1039,7 @@ data class LoggingMessageNotification(
             override val _meta: JsonObject? = null,
         ) : WithMeta
     }
+
     override val method: Method = Method.Defined.NotificationsMessage
 
     @Serializable
@@ -1114,7 +1127,7 @@ data class SamplingMessage(
 @Serializable
 data class CreateMessageRequest(
     override val params: Params,
-) : ServerRequest, JSONRPCRequest() {
+) : ServerRequest {
     override val method: Method = Method.Defined.SamplingCreateMessage
 
     @Serializable
@@ -1245,7 +1258,7 @@ data class UnknownReference(
 @Serializable
 data class CompleteRequest(
     override val params: Params,
-) : ClientRequest, JSONRPCRequest() {
+) : ClientRequest {
     override val method: Method = Method.Defined.CompletionComplete
 
     @Serializable
@@ -1332,7 +1345,7 @@ data class Root(
 @Serializable
 data class ListRootsRequest(
     override val params: WithMeta? = null,
-) : ServerRequest, JSONRPCRequest() {
+) : ServerRequest {
     override val method: Method = Method.Defined.RootsList
 }
 
