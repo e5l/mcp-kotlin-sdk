@@ -1,9 +1,29 @@
-
 plugins {
     kotlin("jvm") version "2.0.21"
     kotlin("plugin.serialization") version "2.0.21"
 //    id("org.jetbrains.kotlinx.atomicfu") version "0.26.1"
+    application
 }
+
+application {
+    mainClass.set("CliKt")
+}
+
+tasks.jar {
+    manifest {
+        attributes["Main-Class"] = "CliKt"
+    }
+
+    // This will include all dependencies in the JAR
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    from(sourceSets.main.get().output)
+    dependsOn(configurations.runtimeClasspath)
+    from({
+        configurations.runtimeClasspath.get().filter { it.name.endsWith("jar") }.map { zipTree(it) }
+    })
+}
+
 
 group = "org.jetbrains.mcp"
 version = "1.0-SNAPSHOT"

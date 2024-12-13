@@ -1,12 +1,17 @@
-
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import server.Server
 import server.ServerOptions
 import server.StdioServerTransport
 
-fun main() {
+fun main(args: Array<String>) {
+    if (args.isNotEmpty() && args[0] == "--server") {
+        runServer()
+        return
+    }
+}
 
+private fun runServer() {
     val def = CompletableDeferred<Unit>()
 
     val server = Server(
@@ -22,19 +27,20 @@ fun main() {
                 logging = null  // or a valid empty JSON object if required
             )
         ),
-        onCloseCallback =  {
+        onCloseCallback = {
             def.complete(Unit)
         }
     )
 
     val transport = StdioServerTransport()
 
-    // If connect is a suspend function, we run it in a coroutine context:
+    val err = System.err
+
     runBlocking {
         server.connect(transport)
-        println("Server running on stdio")
+        err.println("Server running on stdio")
         def.await()
     }
 
-    println("Server closed")
+    err.println("Server closed")
 }
