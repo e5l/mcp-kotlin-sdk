@@ -1,16 +1,19 @@
 package shared
 
 import InitializedNotification
+import JSONRPCNotification
 import Method
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
+import toJSON
 import java.nio.charset.StandardCharsets
 
 class ReadBufferTest {
-    private val testMessage = InitializedNotification()
+    private val testMessage: JSONRPCNotification = InitializedNotification()
+        .toJSON()
     
     private val json = Json { 
         ignoreUnknownKeys = true 
