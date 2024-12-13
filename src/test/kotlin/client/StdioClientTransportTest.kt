@@ -21,10 +21,10 @@ class StdioClientTransportTest {
         var didClose = false
         client.onClose = { didClose = true }
 
-        client.start().await()
+        client.start()
         assertFalse(didClose, "Transport should not be closed immediately after start")
 
-        client.close().await()
+        client.close()
         assertTrue(didClose, "Transport should be closed after close() call")
     }
 
@@ -34,7 +34,7 @@ class StdioClientTransportTest {
         client.onError = { error -> fail("Unexpected error: $error") }
 
         val messages = listOf<JSONRPCMessage>(
-            PingRequest(id = "1", params = null),
+            PingRequest(),
             InitializedNotification()
         )
 
@@ -49,13 +49,13 @@ class StdioClientTransportTest {
             }
         }
 
-        client.start().await()
-        client.send(messages[0]).await()
-        client.send(messages[1]).await()
+        client.start()
+        client.send(messages[0])
+        client.send(messages[1])
 
         finished.await()
         assertEquals(messages, readMessages, "Assert messages received")
 
-        client.close().await()
+        client.close()
     }
 }

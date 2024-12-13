@@ -45,5 +45,5 @@ interface Transport {
     /**
      * Callback for when a message (request or response) is received over the connection.
      */
-    var onMessage: (CoroutineScope.(JSONRPCMessage) -> Unit)?
+    var onMessage: (suspend (CoroutineScope.(JSONRPCMessage) -> Unit))?
 }

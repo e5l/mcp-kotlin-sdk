@@ -13,7 +13,7 @@ class InMemoryTransport : Transport {
 
     override var onClose: (() -> Unit)? = null
     override var onError: ((Throwable) -> Unit)? = null
-    override var onMessage: (CoroutineScope.(JSONRPCMessage) -> Unit)? = null
+    override var onMessage: (suspend (CoroutineScope.(JSONRPCMessage) -> Unit))? = null
 
     /**
      * Creates a pair of linked in-memory transports that can communicate with each other.
