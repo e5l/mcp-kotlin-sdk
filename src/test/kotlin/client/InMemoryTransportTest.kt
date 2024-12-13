@@ -7,6 +7,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import toJSON
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -47,8 +48,9 @@ class InMemoryTransportTest {
                 receivedMessage = msg
             }
 
-            clientTransport.send(message)
-            assertEquals(message, receivedMessage)
+            val rpcNotification = message.toJSON()
+            clientTransport.send(rpcNotification)
+            assertEquals(rpcNotification, receivedMessage)
         }
     }
 
@@ -56,6 +58,7 @@ class InMemoryTransportTest {
     fun `should send message from server to client`() {
         runBlocking {
             val message = InitializedNotification()
+                .toJSON()
 
             var receivedMessage: JSONRPCMessage? = null
             clientTransport.onMessage = { msg ->
@@ -95,7 +98,7 @@ class InMemoryTransportTest {
             assertThrows<IllegalStateException> {
                 runBlocking {
                     clientTransport.send(
-                        InitializedNotification()
+                        InitializedNotification().toJSON()
                     )
                 }
             }
@@ -106,6 +109,7 @@ class InMemoryTransportTest {
     fun `should queue messages sent before start`() {
         runBlocking {
             val message = InitializedNotification()
+                .toJSON()
 
             var receivedMessage: JSONRPCMessage? = null
             serverTransport.onMessage = { msg ->

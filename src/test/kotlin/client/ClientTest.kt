@@ -10,6 +10,7 @@ import Implementation
 import InitializeRequest
 import InitializeResult
 import JSONRPCMessage
+import JSONRPCRequest
 import JSONRPCResponse
 import LATEST_PROTOCOL_VERSION
 import ListRootsRequest
@@ -20,8 +21,10 @@ import ServerCapabilities
 import TextContent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.encodeToJsonElement
 import shared.Transport
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -36,7 +39,7 @@ class ClientTest {
             override suspend fun start() {}
 
             override suspend fun send(message: JSONRPCMessage) {
-                if (message !is InitializeRequest) return
+                if (message !is JSONRPCRequest) return
                 initialied = true
                 val result = InitializeResult(
                     protocolVersion = LATEST_PROTOCOL_VERSION,
@@ -51,6 +54,7 @@ class ClientTest {
                     id = message.id,
                     result = result
                 )
+
                 onMessage?.invoke(response)
             }
 
@@ -85,7 +89,9 @@ class ClientTest {
             override suspend fun start() {}
 
             override suspend fun send(message: JSONRPCMessage) {
-                if (message !is InitializeRequest) return
+                if (message !is JSONRPCRequest) return
+                check(message.method == Method.Defined.Initialize.value)
+
                 val result = InitializeResult(
                     protocolVersion = OLD_VERSION,
                     capabilities = ServerCapabilities(),
@@ -136,7 +142,9 @@ class ClientTest {
             override suspend fun start() {}
 
             override suspend fun send(message: JSONRPCMessage) {
-                if (message !is InitializeRequest) return
+                if (message !is JSONRPCRequest) return
+                check(message.method == Method.Defined.Initialize.value)
+
                 val result = InitializeResult(
                     protocolVersion = "invalid-version",
                     capabilities = ServerCapabilities(),

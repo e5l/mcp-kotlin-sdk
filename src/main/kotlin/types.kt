@@ -2,7 +2,10 @@
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonPrimitive
 import java.util.concurrent.atomic.AtomicLong
 
@@ -89,6 +92,15 @@ sealed interface Request {
         get() = params?._meta?.get("progressToken")?.jsonPrimitive?.content?.toLong()
 }
 
+fun Request.toJSON(): JSONRPCRequest {
+    val encoded = Json.encodeToJsonElement<Request>(this)
+    return JSONRPCRequest(
+        method = method.value,
+        params = encoded,
+        jsonrpc = JSONRPC_VERSION,
+    )
+}
+
 @Serializable
 open class CustomRequest(override val method: Method, override val params: WithMeta?) : Request
 
@@ -96,6 +108,14 @@ open class CustomRequest(override val method: Method, override val params: WithM
 sealed interface Notification {
     val method: Method
     val params: WithMeta?
+}
+
+fun Notification.toJSON(): JSONRPCNotification {
+    val encoded = Json.encodeToJsonElement<Notification>(this)
+    return JSONRPCNotification(
+        method.value,
+        params = encoded
+    )
 }
 
 @Serializable
@@ -123,7 +143,7 @@ sealed interface JSONRPCMessage
 @Serializable
 data class JSONRPCRequest(
     val method: String,
-    val params: JsonObject,
+    val params: JsonElement,
     val jsonrpc: String = JSONRPC_VERSION,
     val id: RequestId = REQUEST_MESSAGE_ID.incrementAndGet(),
 ) : JSONRPCMessage
@@ -134,7 +154,7 @@ data class JSONRPCRequest(
 @Serializable
 data class JSONRPCNotification(
     val method: String,
-    val params: JsonObject,
+    val params: JsonElement,
     val jsonrpc: String = JSONRPC_VERSION
 ) : JSONRPCMessage
 
@@ -145,8 +165,8 @@ data class JSONRPCNotification(
 class JSONRPCResponse(
     val id: RequestId,
     val jsonrpc: String = JSONRPC_VERSION,
-    val result: RequestResult,
-    val error: JSONRPCError
+    val result: RequestResult? = null,
+    val error: JSONRPCError? = null
 ) : JSONRPCMessage
 
 /**
