@@ -3,14 +3,8 @@ package client
 import InitializedNotification
 import JSONRPCMessage
 import PingRequest
-import io.ktor.utils.io.streams.asInput
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.runTest
-import kotlinx.io.Sink
-import kotlinx.io.Source
-import kotlinx.io.asSink
-import kotlinx.io.asSource
-import kotlinx.io.buffered
 import toJSON
 import kotlin.test.*
 
