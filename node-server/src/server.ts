@@ -24,6 +24,7 @@ const mcpServer = new Server(
 );
 
 mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
+    console.log("ListToolsRequest");
     return {
         tools: []
     }
@@ -43,6 +44,7 @@ const server = net.createServer((socket) => {
     handleConnection(stdin, stdout);
     // Pipe socket data to stdin
     socket.on('data', (chunk) => {
+        console.log("Socket data", chunk);
         stdin.push(chunk);
     });
 
