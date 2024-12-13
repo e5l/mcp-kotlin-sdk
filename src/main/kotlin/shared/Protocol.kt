@@ -34,7 +34,7 @@ class AbortSignal {
         TODO("Not yet implemented")
     }
 
-    fun addEventListener(event: String, callback: Any) {}
+    fun addEventListener(event: String, block: suspend () -> Unit) {}
 
     var reason: Throwable? = null
     var aborted: Boolean = false
@@ -363,7 +363,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
         TODO()
     }
 
-    fun setTimeout(block: () -> Unit, timeout: Duration): Any {
+    fun setTimeout(block: suspend () -> Unit, timeout: Duration): Any {
         return Unit
     }
 
@@ -372,11 +372,10 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
      *
      * Do not use this method to emit notifications! Use notification() instead.
      */
-    fun <T : RequestResult> request(
+    suspend fun <T : RequestResult> request(
         request: SendRequestT,
         options: RequestOptions? = null,
-    ): Deferred<T> {
-
+    ): T {
         val result = CompletableDeferred<T>()
         val transport = this@Protocol.transport ?: throw Error("Not connected")
 
@@ -391,11 +390,10 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
 
         if (options?.onProgress != null) {
             progressHandlers[messageId] = options.onProgress
-            // TODO
 //            request.progressToken = messageId
 //                jsonrpcRequest.params = {
 //                    ...request.params,
-//                    _meta: { progressToken: messageId },
+//                    _meta: { progressToken: messageId }, TODO!!!
 //                }
         }
 
@@ -422,11 +420,11 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
             }
         })
 
-        val cancel = { reason: Throwable ->
+        val cancel: suspend (Throwable) -> Unit = { reason: Throwable ->
             responseHandlers.remove(messageId)
             progressHandlers.remove(messageId)
 
-            val cancelResult = transport.send(
+             transport.send(
                 CancelledNotification(
                     params = CancelledNotification.Params(requestId = messageId, reason = reason.message ?: "Unknown")
                 )
@@ -436,34 +434,23 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
             Unit
         }
 
-        options?.signal?.addEventListener("abort", {
-            if (timeoutId !== null) {
-                clearTimeout(timeoutId)
-            }
-
-            cancel(options.signal.reason ?: Exception("Aborted"))
-        })
-
         val timeout = options?.timeout ?: DEFAULT_REQUEST_TIMEOUT
-        timeoutId = setTimeout(
-            {
-                cancel(
-                    McpError(
-                        ErrorCode.Defined.RequestTimeout.code,
-                        "Request timed out",
-                        JsonObject(mutableMapOf("timeout" to JsonPrimitive(timeout.inWholeMilliseconds)))
-                    ),
-                )
-            },
-            timeout,
-        )
-
-        this@Protocol.transport!!.send(request).invokeOnCompletion { error ->
-            clearTimeout(timeoutId)
-            result.cancel("", error)
+        try {
+            withTimeout(timeout) {
+                this@Protocol.transport!!.send(request)
+            }
+            return result.await() as T
+        } catch (cause: TimeoutCancellationException) {
+            cancel(
+                McpError(
+                    ErrorCode.Defined.RequestTimeout.code,
+                    "Request timed out",
+                    JsonObject(mutableMapOf("timeout" to JsonPrimitive(timeout.inWholeMilliseconds)))
+                ),
+            )
+            result.cancel(cause)
+            throw cause
         }
-
-        return result as Deferred<T>
     }
 
     /**
