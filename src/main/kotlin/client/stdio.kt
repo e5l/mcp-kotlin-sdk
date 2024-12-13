@@ -5,13 +5,11 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.io.IOException
-import kotlinx.io.Sink
-import kotlinx.io.Source
-import kotlinx.io.asInputStream
-import kotlinx.io.asOutputStream
 import shared.ReadBuffer
 import shared.Transport
 import shared.serializeMessage
+import java.io.InputStream
+import java.io.OutputStream
 import kotlin.coroutines.CoroutineContext
 import kotlin.text.Charsets.UTF_8
 
@@ -76,8 +74,8 @@ private fun getDefaultEnvironment(): Map<String, String> {
  */
 class StdioClientTransport(
 //    private val serverParams: StdioServerParameters,
-    private val input: Source,
-    private val output: Sink
+    private val input: InputStream,
+    private val output: OutputStream
 ) : Transport {
     private val jsonRpcContext: CoroutineContext = Dispatchers.IO
     private val scope = CoroutineScope(jsonRpcContext + SupervisorJob())
@@ -123,15 +121,14 @@ class StdioClientTransport(
 //        val inputStream = p.inputStream.buffered()
 //        val outputStream = p.outputStream.bufferedWriter(UTF_8)
 
-        val inputStream = input.asInputStream()
-        val outputStream = output.asOutputStream().bufferedWriter(UTF_8)
+        val outputStream = output.bufferedWriter(UTF_8)
 
         job = scope.launch {
             val readJob = launch {
                 try {
                     val buffer = ByteArray(8192)
                     while (isActive) {
-                        val bytesRead = inputStream.read(buffer)
+                        val bytesRead = input.read(buffer)
                         if (bytesRead == -1) break
                         if (bytesRead > 0) {
                             readBuffer.append(buffer.copyOf(bytesRead))
@@ -148,7 +145,7 @@ class StdioClientTransport(
                         else -> { onError?.invoke(e) }
                     }
                 } finally {
-                    inputStream.close()
+                    input.close()
                 }
             }
 

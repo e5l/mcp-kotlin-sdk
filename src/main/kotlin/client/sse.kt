@@ -12,7 +12,6 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.Url
 import io.ktor.http.isSuccess
-import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +22,7 @@ import kotlinx.serialization.encodeToString
 import shared.AbortController
 import shared.McpJson
 import shared.Transport
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.CoroutineContext
 import kotlin.properties.Delegates
 import kotlin.time.Duration
@@ -45,7 +45,7 @@ class SSEClientTransport(
         }
     }
 
-    private val initialized = atomic(false)
+    private val initialized = AtomicBoolean(false)
     private var session: ClientSSESession by Delegates.notNull()
     private val endpoint = CompletableDeferred<Url>()
     private var _abortController: AbortController? = null
@@ -55,7 +55,7 @@ class SSEClientTransport(
     override var onMessage: (suspend ((JSONRPCMessage) -> Unit))? = null
 
     override suspend fun start() {
-        if (!initialized.compareAndSet(expect = false, update = true)) {
+        if (!initialized.compareAndSet(false, true)) {
             error(
                 "SSEClientTransport already started! If using Client class, note that connect() calls start() automatically.",
             )
@@ -115,7 +115,7 @@ class SSEClientTransport(
     }
 
     override suspend fun close() {
-        if (!initialized.value) {
+        if (!initialized.get()) {
             error("SSEClientTransport is not initialized!")
         }
 

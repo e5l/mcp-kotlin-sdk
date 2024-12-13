@@ -22,8 +22,8 @@ class StdioClientTransportTest {
         val processBuilder = ProcessBuilder("/usr/bin/tee")
         val process = processBuilder.start()
 
-        val input: Source = process.inputStream.asInput()
-        val output: Sink = process.outputStream.asSink().buffered()
+        val input = process.inputStream
+        val output = process.outputStream
 
         val client = StdioClientTransport(
             input = input,
@@ -51,8 +51,8 @@ class StdioClientTransportTest {
         val processBuilder = ProcessBuilder("/usr/bin/tee")
         val process = processBuilder.start()
 
-        val input: Source = process.inputStream.asSource().buffered()
-        val output: Sink = process.outputStream.asSink().buffered()
+        val input = process.inputStream
+        val output = process.outputStream
 
         val client = StdioClientTransport(
             input = input,

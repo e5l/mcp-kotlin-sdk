@@ -1,9 +1,9 @@
 @file:Suppress("unused", "EnumEntryName")
 
-import kotlinx.atomicfu.atomic
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.json.*
+import java.util.concurrent.atomic.AtomicLong
 
 const val LATEST_PROTOCOL_VERSION = "2024-11-05"
 
@@ -14,7 +14,7 @@ val SUPPORTED_PROTOCOL_VERSIONS = arrayOf(
 
 const val JSONRPC_VERSION: String = "2.0"
 
-private val REQUEST_MESSAGE_ID = atomic(0L)
+private val REQUEST_MESSAGE_ID = AtomicLong(0L)
 
 /**
  * A progress token, used to associate progress notifications with the original request.
