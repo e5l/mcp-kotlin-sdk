@@ -512,10 +512,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
      */
     fun <T : Notification> setNotificationHandler(method: Method, handler: (notification: T) -> Deferred<Unit>) {
         this.notificationHandlers[method.value] = {
-            val decoded = it.fromJSON()
-                ?: error("Can not decode notification: ${it.params.toString()}")
-
-            handler(decoded as T)
+            handler(it.fromJSON() as T)
         }
     }
 

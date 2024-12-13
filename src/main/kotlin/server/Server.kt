@@ -225,7 +225,7 @@ open class Server(
     }
 
     suspend fun listRoots(
-        params: WithMeta? = null,
+        params: WithMeta = WithMeta.Empty,
         options: RequestOptions? = null
     ): ListRootsResult {
         return request<ListRootsResult>(ListRootsRequest(params), options)

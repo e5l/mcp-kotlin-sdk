@@ -47,7 +47,7 @@ class ClientOptions(
     /**
      * Capabilities to advertise as being supported by this client.
      */
-    val capabilities: ClientCapabilities = ClientCapabilities()
+    val capabilities: ClientCapabilities = ClientCapabilities(),
 ) : ProtocolOptions()
 
 /**
@@ -69,7 +69,7 @@ class ClientOptions(
  */
 open class Client(
     private val clientInfo: Implementation,
-    options: ClientOptions = ClientOptions()
+    options: ClientOptions = ClientOptions(),
 ) : Protocol<ClientRequest, ClientNotification, ClientResult>(options) {
 
     private var serverCapabilities: ServerCapabilities? = null
@@ -93,36 +93,36 @@ open class Client(
 
 
     override suspend fun connect(transport: Transport) {
-            super.connect(transport)
+        super.connect(transport)
 
-            try {
-                val message = InitializeRequest(
-                    params = InitializeRequest.Params(
-                        protocolVersion = LATEST_PROTOCOL_VERSION,
-                        capabilities = capabilities,
-                        clientInfo = clientInfo
-                    )
+        try {
+            val message = InitializeRequest(
+                params = InitializeRequest.Params(
+                    protocolVersion = LATEST_PROTOCOL_VERSION,
+                    capabilities = capabilities,
+                    clientInfo = clientInfo
                 )
-                val result = request<InitializeResult>(message)
+            )
+            val result = request<InitializeResult>(message)
 
-                if (result == null) {
-                    throw IllegalStateException("Server sent invalid initialize result.")
-                }
-
-                if (!SUPPORTED_PROTOCOL_VERSIONS.contains(result.protocolVersion)) {
-                    throw IllegalStateException(
-                        "Server's protocol version is not supported: ${result.protocolVersion}"
-                    )
-                }
-
-                serverCapabilities = result.capabilities
-                serverVersion = result.serverInfo
-
-                notification(InitializedNotification())
-            } catch (error: Throwable) {
-                close()
-                throw error
+            if (result == null) {
+                throw IllegalStateException("Server sent invalid initialize result.")
             }
+
+            if (!SUPPORTED_PROTOCOL_VERSIONS.contains(result.protocolVersion)) {
+                throw IllegalStateException(
+                    "Server's protocol version is not supported: ${result.protocolVersion}"
+                )
+            }
+
+            serverCapabilities = result.capabilities
+            serverVersion = result.serverInfo
+
+            notification(InitializedNotification())
+        } catch (error: Throwable) {
+            close()
+            throw error
+        }
     }
 
     /**
@@ -149,7 +149,8 @@ open class Client(
 
             Method.Defined.PromptsGet,
             Method.Defined.PromptsList,
-            Method.Defined.CompletionComplete -> {
+            Method.Defined.CompletionComplete,
+                -> {
                 if (serverCapabilities?.prompts == null) {
                     throw IllegalStateException("Server does not support prompts (required for $method)")
                 }
@@ -159,7 +160,8 @@ open class Client(
             Method.Defined.ResourcesTemplatesList,
             Method.Defined.ResourcesRead,
             Method.Defined.ResourcesSubscribe,
-            Method.Defined.ResourcesUnsubscribe -> {
+            Method.Defined.ResourcesUnsubscribe,
+                -> {
                 val resCaps = serverCapabilities?.resources
                 if (resCaps == null) {
                     throw IllegalStateException("Server does not support resources (required for $method)")
@@ -173,14 +175,16 @@ open class Client(
             }
 
             Method.Defined.ToolsCall,
-            Method.Defined.ToolsList -> {
+            Method.Defined.ToolsList,
+                -> {
                 if (serverCapabilities?.tools == null) {
                     throw IllegalStateException("Server does not support tools (required for $method)")
                 }
             }
 
             Method.Defined.Initialize,
-            Method.Defined.Ping -> {
+            Method.Defined.Ping,
+                -> {
                 // No specific capability required
             }
 
@@ -202,7 +206,8 @@ open class Client(
 
             Method.Defined.NotificationsInitialized,
             Method.Defined.NotificationsCancelled,
-            Method.Defined.NotificationsProgress -> {
+            Method.Defined.NotificationsProgress,
+                -> {
                 // Always allowed
             }
 
@@ -233,6 +238,7 @@ open class Client(
             Method.Defined.Ping -> {
                 // No capability required
             }
+
             else -> {}
         }
     }
@@ -263,15 +269,15 @@ open class Client(
     }
 
     suspend fun listPrompts(
-        params: PaginatedRequest.Params? = null,
-        options: RequestOptions? = null
+        params: PaginatedRequest.Params = PaginatedRequest.Params.Empty,
+        options: RequestOptions? = null,
     ): ListPromptsResult? {
         return request<ListPromptsResult>(ListPromptsRequest(params = params), options)
     }
 
     suspend fun listResources(
-        params: PaginatedRequest.Params? = null,
-        options: RequestOptions? = null
+        params: PaginatedRequest.Params = PaginatedRequest.Params.Empty,
+        options: RequestOptions? = null,
     ): ListResourcesResult? {
         return request<ListResourcesResult>(
             ListResourcesRequest(params),
@@ -280,8 +286,8 @@ open class Client(
     }
 
     suspend fun listResourceTemplates(
-        params: PaginatedRequest.Params? = null,
-        options: RequestOptions? = null
+        params: PaginatedRequest.Params = PaginatedRequest.Params.Empty,
+        options: RequestOptions? = null,
     ): ListResourceTemplatesResult? {
         return request<ListResourceTemplatesResult>(
             ListResourceTemplatesRequest(params),
@@ -313,7 +319,7 @@ open class Client(
     suspend fun callTool(
         params: CallToolRequest.Params,
         compatibility: Boolean = false,
-        options: RequestOptions? = null
+        options: RequestOptions? = null,
     ): CallToolResultBase? {
         return if (compatibility) {
             request<CompatibilityCallToolResult>(
@@ -328,7 +334,10 @@ open class Client(
         }
     }
 
-    suspend fun listTools(params: PaginatedRequest.Params? = null, options: RequestOptions? = null): ListToolsResult? =
+    suspend fun listTools(
+        params: PaginatedRequest.Params = PaginatedRequest.Params.Empty,
+        options: RequestOptions? = null,
+    ): ListToolsResult? =
         request<ListToolsResult>(
             ListToolsRequest(params),
             options

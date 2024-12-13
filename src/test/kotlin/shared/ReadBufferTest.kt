@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test
 import java.nio.charset.StandardCharsets
 
 class ReadBufferTest {
-    private val testMessage: JSONRPCMessage = JSONRPCNotification(method = "foobar", params = null)
+    private val testMessage: JSONRPCMessage = JSONRPCNotification(method = "foobar")
 
     private val json = Json { 
         ignoreUnknownKeys = true 
