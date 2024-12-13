@@ -115,16 +115,23 @@ class StdioClientTransport(
             throw RuntimeException("Process input or output stream is null")
         }
 
-        val inputStream = p.inputStream.bufferedReader(UTF_8)
+        val inputStream = p.inputStream.buffered()
         val outputStream = p.outputStream.bufferedWriter(UTF_8)
 
         job = scope.launch {
             val readJob = launch {
                 try {
+                    val buffer = ByteArray(8192)
                     while (isActive) {
-                        val line = inputStream.readLine() ?: break
-                        readBuffer.append(line.toByteArray())
-                        processReadBuffer()
+                        val bytesRead = inputStream.read(buffer)
+                        if (bytesRead == -1) break
+                        if (bytesRead > 0) {
+                            readBuffer.append(buffer.copyOf(bytesRead))
+                            processReadBuffer()
+                        }
+//                        val line = inputStream.readLine() ?: break
+//                        readBuffer.append(line.toByteArray())
+//                        processReadBuffer()
                     }
                 } catch (e: Throwable) {
                     if (isActive) {

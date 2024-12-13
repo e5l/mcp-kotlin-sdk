@@ -1,20 +1,17 @@
 package shared
 
-import InitializedNotification
+import JSONRPCMessage
 import JSONRPCNotification
-import Method
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
-import toJSON
 import java.nio.charset.StandardCharsets
 
 class ReadBufferTest {
-    private val testMessage: JSONRPCNotification = InitializedNotification()
-        .toJSON()
-    
+    private val testMessage: JSONRPCMessage = JSONRPCNotification(method = "foobar", params = null)
+
     private val json = Json { 
         ignoreUnknownKeys = true 
         encodeDefaults = true
@@ -46,16 +43,14 @@ class ReadBufferTest {
     fun `should be reusable after clearing`() {
         val readBuffer = ReadBuffer()
 
-        // Test clearing buffer
-        readBuffer.append(Method.Defined.NotificationsInitialized.value.toByteArray(StandardCharsets.UTF_8))
+        readBuffer.append("foobar".toByteArray(Charsets.UTF_8))
         readBuffer.clear()
         assertNull(readBuffer.readMessage())
 
-        // Test reuse after clearing
-        val messageBytes = json.encodeToString(testMessage)
-            .toByteArray(StandardCharsets.UTF_8)
-        readBuffer.append(messageBytes)
-        readBuffer.append("\n".toByteArray(StandardCharsets.UTF_8))
-        assertEquals(testMessage, readBuffer.readMessage())
+        val messageJson = serializeMessage(testMessage)
+        readBuffer.append(messageJson.toByteArray(Charsets.UTF_8))
+        readBuffer.append("\n".toByteArray(Charsets.UTF_8))
+        val message = readBuffer.readMessage()
+        assertEquals(testMessage, message)
     }
 }

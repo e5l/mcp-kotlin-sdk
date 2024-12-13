@@ -156,7 +156,7 @@ data class JSONRPCRequest(
 @Serializable
 data class JSONRPCNotification(
     val method: String,
-    val params: JsonElement,
+    val params: JsonElement?,
     val jsonrpc: String = JSONRPC_VERSION
 ) : JSONRPCMessage
 
