@@ -7,11 +7,7 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import kotlinx.serialization.json.JsonContentPolymorphicSerializer
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.*
 
 internal object ErrorCodeSerializer : KSerializer<ErrorCode> {
     override val descriptor: SerialDescriptor =
@@ -110,13 +106,14 @@ internal object ResourceContentsPolymorphicSerializer :
     }
 }
 
-private fun selectClientRequestDeserializer(element: JsonElement): DeserializationStrategy<ClientRequest>? {
-    val value = element.jsonObject.getOrDefault("method", null) ?: run {
-        System.err.println("No method in $element")
-        Throwable().printStackTrace(System.err)
-        return null
-    }
-    return when (value.jsonPrimitive.content) {
+internal fun selectRequestDeserializer(method: String): DeserializationStrategy<Request> {
+    selectClientRequestDeserializer(method)?.let { return it }
+    selectServerRequestDeserializer(method)?.let { return it }
+    return CustomRequest.serializer()
+}
+
+internal fun selectClientRequestDeserializer(method: String): DeserializationStrategy<ClientRequest>? {
+    return when (method) {
         Method.Defined.Ping.value -> PingRequest.serializer()
         Method.Defined.Initialize.value -> InitializeRequest.serializer()
         Method.Defined.CompletionComplete.value -> CompleteRequest.serializer()
@@ -134,13 +131,16 @@ private fun selectClientRequestDeserializer(element: JsonElement): Deserializati
     }
 }
 
-internal object ClientRequestPolymorphicSerializer :
-    JsonContentPolymorphicSerializer<ClientRequest>(ClientRequest::class) {
-    override fun selectDeserializer(element: JsonElement): DeserializationStrategy<ClientRequest> {
-        return selectClientRequestDeserializer(element)
-            ?: UnknownMethodRequestOrNotification.serializer()
-    }
-}
+//internal object ClientRequestPolymorphicSerializer :
+//    JsonContentPolymorphicSerializer<ClientRequest>(ClientRequest::class) {
+//    override fun selectDeserializer(element: JsonElement): DeserializationStrategy<ClientRequest> {
+//        val method = element.jsonObject.getOrDefault("method", null)?.jsonPrimitive?.content
+//            ?: error("No method in $element")
+//
+//        return selectClientRequestDeserializer(method)
+//            ?: UnknownMethodRequestOrNotification.serializer()
+//    }
+//}
 
 private fun selectClientNotificationDeserializer(element: JsonElement): DeserializationStrategy<ClientNotification>? {
     return when (element.jsonObject.getValue("method").jsonPrimitive.content) {
@@ -160,8 +160,8 @@ internal object ClientNotificationPolymorphicSerializer :
     }
 }
 
-private fun selectServerRequestDeserializer(element: JsonElement): DeserializationStrategy<ServerRequest>? {
-    return when (element.jsonObject.getValue("method").jsonPrimitive.content) {
+internal fun selectServerRequestDeserializer(method: String): DeserializationStrategy<ServerRequest>? {
+    return when (method) {
         Method.Defined.Ping.value -> PingRequest.serializer()
         Method.Defined.SamplingCreateMessage.value -> CreateMessageRequest.serializer()
         Method.Defined.RootsList.value -> ListRootsRequest.serializer()
@@ -169,15 +169,15 @@ private fun selectServerRequestDeserializer(element: JsonElement): Deserializati
     }
 }
 
-internal object ServerRequestPolymorphicSerializer :
-    JsonContentPolymorphicSerializer<ServerRequest>(ServerRequest::class) {
-    override fun selectDeserializer(element: JsonElement): DeserializationStrategy<ServerRequest> {
-        return selectServerRequestDeserializer(element)
-            ?: UnknownMethodRequestOrNotification.serializer()
-    }
-}
+//internal object ServerRequestPolymorphicSerializer :
+//    JsonContentPolymorphicSerializer<ServerRequest>(ServerRequest::class) {
+//    override fun selectDeserializer(element: JsonElement): DeserializationStrategy<ServerRequest> {
+//        return selectServerRequestDeserializer(element)
+//            ?: UnknownMethodRequestOrNotification.serializer()
+//    }
+//}
 
-private fun selectServerNotificationDeserializer(element: JsonElement): DeserializationStrategy<ServerNotification>? {
+internal fun selectServerNotificationDeserializer(element: JsonElement): DeserializationStrategy<ServerNotification>? {
     return when (element.jsonObject.getValue("method").jsonPrimitive.content) {
         Method.Defined.NotificationsCancelled.value -> CancelledNotification.serializer()
         Method.Defined.NotificationsProgress.value -> ProgressNotification.serializer()
@@ -210,8 +210,14 @@ internal object NotificationPolymorphicSerializer :
 internal object RequestPolymorphicSerializer :
     JsonContentPolymorphicSerializer<Request>(Request::class) {
     override fun selectDeserializer(element: JsonElement): DeserializationStrategy<Request> {
-        return selectClientRequestDeserializer(element)
-            ?: selectServerRequestDeserializer(element)
+        val method = element.jsonObject.getOrDefault("method", null)?.jsonPrimitive?.content ?: run {
+            System.err.println("No method in $element")
+            Throwable().printStackTrace(System.err)
+            error("No method in $element")
+        }
+
+        return selectClientRequestDeserializer(method)
+            ?: selectServerRequestDeserializer(method)
             ?: UnknownMethodRequestOrNotification.serializer()
     }
 }
