@@ -3,6 +3,7 @@ package server
 import ClientCapabilities
 import CreateMessageRequest
 import CreateMessageResult
+import EmptyJsonObject
 import EmptyRequestResult
 import Implementation
 import InitializeRequest
@@ -25,6 +26,7 @@ import ServerResult
 import ToolListChangedNotification
 import WithMeta
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.serialization.json.JsonObject
 import shared.Protocol
 import shared.ProtocolOptions
 import shared.RequestOptions
@@ -177,9 +179,9 @@ open class Server(
     }
 
     private suspend fun _oninitialize(request: InitializeRequest): InitializeResult {
-        val requestedVersion = request.params.protocolVersion
-        _clientCapabilities = request.params.capabilities
-        _clientVersion = request.params.clientInfo
+        val requestedVersion = request.protocolVersion
+        _clientCapabilities = request.capabilities
+        _clientVersion = request.clientInfo
 
         val protocolVersion = if (SUPPORTED_PROTOCOL_VERSIONS.contains(requestedVersion)) {
             requestedVersion
@@ -217,26 +219,26 @@ open class Server(
     }
 
     suspend fun createMessage(
-        params: CreateMessageRequest.Params,
+        params: CreateMessageRequest,
         options: RequestOptions? = null
     ): CreateMessageResult {
         // Assuming CreateMessageResultSchema not needed if we can just deserialize into CreateMessageResult
-        return request<CreateMessageResult>(CreateMessageRequest(params), options)
+        return request<CreateMessageResult>(params, options)
     }
 
     suspend fun listRoots(
-        params: WithMeta = WithMeta.Empty,
+        params: JsonObject = EmptyJsonObject,
         options: RequestOptions? = null
     ): ListRootsResult {
         return request<ListRootsResult>(ListRootsRequest(params), options)
     }
 
-    suspend fun sendLoggingMessage(params: LoggingMessageNotification.Params) {
-        notification(LoggingMessageNotification(params = params))
+    suspend fun sendLoggingMessage(params: LoggingMessageNotification) {
+        notification(params)
     }
 
-    suspend fun sendResourceUpdated(params: ResourceUpdatedNotification.Params) {
-        notification(ResourceUpdatedNotification(params = params))
+    suspend fun sendResourceUpdated(params: ResourceUpdatedNotification) {
+        notification(params)
     }
 
     suspend fun sendResourceListChanged() {
