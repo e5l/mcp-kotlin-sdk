@@ -25,7 +25,7 @@ class ClientIntegrationTest {
             client.connect(transport)
 
             val response: ListToolsResult? = client.listTools()
-            println(response)
+            println(response?.tools)
 
         } finally {
             transport.close()
