@@ -24,18 +24,26 @@ import Role
 import SUPPORTED_PROTOCOL_VERSIONS
 import ServerCapabilities
 import TextContent
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.time.withTimeout
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertInstanceOf
 import server.Server
 import server.ServerOptions
 import shared.Transport
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.test.assertEquals
+import kotlin.test.assertFails
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import kotlin.test.fail
 
 class ClientTest {
     @Test
@@ -230,18 +238,15 @@ class ClientTest {
             clientInfo = Implementation(name = "test client", version = "1.0"),
             options = ClientOptions(
                 capabilities = ClientCapabilities(sampling = EmptyJsonObject),
-//                enforceStrictCapabilities = true // TODO()
             )
         )
 
         listOf(
             launch {
                 client.connect(clientTransport)
-                println("Client connected")
             },
             launch {
                 server.connect(serverTransport)
-                println("Server connected")
             }
         ).joinAll()
 
@@ -264,7 +269,6 @@ class ClientTest {
 
     @Test
     fun `should respect client notification capabilities`() = runTest {
-        TODO("Client can't connect due to issue with initialize request")
         val server = Server(
             Implementation(name = "test server", version = "1.0"),
             ServerOptions(capabilities = ServerCapabilities())
@@ -282,8 +286,14 @@ class ClientTest {
         val (clientTransport, serverTransport) = InMemoryTransport.createLinkedPair()
 
         listOf(
-            launch { client.connect(clientTransport) },
-            launch { server.connect(serverTransport) }
+            launch {
+                client.connect(clientTransport)
+                println("Client connected")
+            },
+            launch {
+                server.connect(serverTransport)
+                println("Server connected")
+            }
         ).joinAll()
 
         // This should not throw because the client supports roots.listChanged
@@ -311,7 +321,6 @@ class ClientTest {
 
     @Test
     fun `should respect server notification capabilities`() = runTest {
-        TODO("Client can't connect due to issue with initialize request")
         val server = Server(
             Implementation(name = "test server", version = "1.0"),
             ServerOptions(
@@ -332,8 +341,14 @@ class ClientTest {
         val (clientTransport, serverTransport) = InMemoryTransport.createLinkedPair()
 
         listOf(
-            launch { client.connect(clientTransport) },
-            launch { server.connect(serverTransport) }
+            launch {
+                client.connect(clientTransport)
+                println("Client connected")
+            },
+            launch {
+                server.connect(serverTransport)
+                println("Server connected")
+            }
         ).joinAll()
 
         // These should not throw
@@ -357,93 +372,111 @@ class ClientTest {
         assertTrue(ex.message?.contains("Server does not support notifying of tool list changes") == true)
     }
 
-//    @Test
-//    fun `should handle client cancelling a request`() = runTest {
-//        val server = Server(
-//            Implementation(name = "test server", version = "1.0"),
-//            ServerOptions(
-//                capabilities = ServerCapabilities(resources = EmptyJsonObject)
-//            )
-//        )
-//
-//        server.setRequestHandler(ListResourcesRequestSchema) { _, extra ->
-//            // Simulate delay
-//            kotlinx.coroutines.delay(1000)
-//            ListResourcesResult(resources = emptyList())
-//        }
-//
-//        val (clientTransport, serverTransport) = InMemoryTransport.createLinkedPair()
-//
-//        val client = Client(
-//            clientInfo = Implementation(name = "test client", version = "1.0"),
-//            options = ClientOptions(capabilities = ClientCapabilities())
-//        )
-//
-//        client.connect(clientTransport)
-//        server.connect(serverTransport)
-//
-//        val job = kotlinx.coroutines.launch {
-//            try {
-//                client.listResources(signal = kotlinx.coroutines.CoroutineScope(coroutineContext).coroutineContext.job.apply {
-//                    // Simulate something like AbortSignal by cancelling immediately
-//                    cancel(CancellationException("Cancelled by test"))
-//                })
-//                fail("Expected cancellation")
-//            } catch (e: CancellationException) {
-//                assertEquals("Cancelled by test", e.message)
-//            }
-//        }
-//        job.join()
-//    }
-
-//    @Test
-//    fun `should handle request timeout`() = runTest {
-//        val server = Server(
-//            Implementation(name = "test server", version = "1.0"),
-//            ServerOptions(
-//                capabilities = ServerCapabilities(resources = EmptyJsonObject)
-//            )
-//        )
-//
-//        server.setRequestHandler(ListResourcesRequestSchema) { _, extra ->
-//            // Simulate a delayed response
-//            val signal = extra.signal
-//            // Wait ~100ms unless cancelled
-//            try {
-//                withTimeout(100) {
-//                    // Just delay here, if timeout is 0 on client side this won't return in time
-//                    kotlinx.coroutines.delay(100)
-//                }
-//            } catch (e: Exception) {
-//                // If aborted, just rethrow or return early
-//            }
-//            ListResourcesResult(resources = emptyList())
-//        }
-//
-//        val (clientTransport, serverTransport) = InMemoryTransport.createLinkedPair()
-//        val client = Client(
-//            clientInfo = Implementation(name = "test client", version = "1.0"),
-//            options = ClientOptions(capabilities = ClientCapabilities())
-//        )
-//
-//        client.connect(clientTransport)
-//        server.connect(serverTransport)
-//
-//        // Request with 0 msec timeout should fail immediately
-//        val ex = assertFailsWith<ServerException> {
-//            client.listResources(timeout = 0)
-//        }
-//        assertTrue(ex.code == ErrorCode.RequestTimeout)
-//    }
-
     @Test
     fun `should handle client cancelling a request`() = runTest {
-        TODO("Server")
+        val server = Server(
+            Implementation(name = "test server", version = "1.0"),
+            ServerOptions(
+                capabilities = ServerCapabilities(resources = ServerCapabilities.Resources(listChanged = null, subscribe = null))
+            )
+        )
+
+        val def = CompletableDeferred<Unit>()
+        val defTimeOut = CompletableDeferred<Unit>()
+        server.setRequestHandler<ListResourcesRequest>(Method.Defined.ResourcesList) { _, extra ->
+            // Simulate delay
+            def.complete(Unit)
+            try {
+                kotlinx.coroutines.delay(1000)
+            } catch (e: CancellationException) {
+                defTimeOut.complete(Unit)
+                throw e
+            }
+            fail("Shouldn't have been called")
+            ListResourcesResult(resources = emptyArray())
+        }
+
+        val (clientTransport, serverTransport) = InMemoryTransport.createLinkedPair()
+
+        val client = Client(
+            clientInfo = Implementation(name = "test client", version = "1.0"),
+            options = ClientOptions(capabilities = ClientCapabilities())
+        )
+
+        listOf(
+            launch {
+                client.connect(clientTransport)
+                println("Client connected")
+            },
+            launch {
+                server.connect(serverTransport)
+                println("Server connected")
+            }
+        ).joinAll()
+
+        val defCancel = CompletableDeferred<Unit>()
+        val job = launch {
+            try {
+                client.listResources()
+            } catch (e: CancellationException) {
+                defCancel.complete(Unit)
+                assertEquals("Cancelled by test", e.message)
+            }
+        }
+        def.await()
+        runCatching { job.cancel("Cancelled by test") }
+        defCancel.await()
+        defTimeOut.await()
     }
 
     @Test
-    fun `should handle request timeout`() {
-        TODO("Server")
+    fun `should handle request timeout`() = runTest {
+        val server = Server(
+            Implementation(name = "test server", version = "1.0"),
+            ServerOptions(
+                capabilities = ServerCapabilities(resources = ServerCapabilities.Resources(listChanged = null, subscribe = null))
+            )
+        )
+
+        server.setRequestHandler<ListResourcesRequest>(Method.Defined.ResourcesList) { _, extra ->
+            // Simulate a delayed response
+            val signal = extra.signal
+            // Wait ~100ms unless cancelled
+            try {
+                kotlinx.coroutines.withTimeout(100L) {
+                    // Just delay here, if timeout is 0 on client side this won't return in time
+                    kotlinx.coroutines.delay(100)
+                }
+            } catch (e: Exception) {
+                // If aborted, just rethrow or return early
+            }
+            ListResourcesResult(resources = emptyArray())
+        }
+
+        val (clientTransport, serverTransport) = InMemoryTransport.createLinkedPair()
+        val client = Client(
+            clientInfo = Implementation(name = "test client", version = "1.0"),
+            options = ClientOptions(capabilities = ClientCapabilities())
+        )
+
+        listOf(
+            launch {
+                client.connect(clientTransport)
+                println("Client connected")
+            },
+            launch {
+                server.connect(serverTransport)
+                println("Server connected")
+            }
+        ).joinAll()
+
+        // Request with 1 msec timeout should fail immediately
+        val ex = assertFailsWith<Exception> {
+            kotlinx.coroutines.withTimeout(1) {
+                client.listResources()
+            }
+        }
+        assertTrue(ex is TimeoutCancellationException)
     }
 
     @Test

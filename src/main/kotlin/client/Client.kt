@@ -47,7 +47,8 @@ class ClientOptions(
      * Capabilities to advertise as being supported by this client.
      */
     val capabilities: ClientCapabilities = ClientCapabilities(),
-) : ProtocolOptions()
+    enforceStrictCapabilities: Boolean = true,
+) : ProtocolOptions(enforceStrictCapabilities = enforceStrictCapabilities)
 
 /**
  * An MCP client on top of a pluggable transport.
