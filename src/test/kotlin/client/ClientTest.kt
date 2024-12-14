@@ -262,9 +262,9 @@ class ClientTest {
         assertTrue(ex.message?.contains("Server does not support prompts") == true)
     }
 
-    @Disabled("Client can't connect due to issue with initialize request")
     @Test
     fun `should respect client notification capabilities`() = runTest {
+        TODO("Client can't connect due to issue with initialize request")
         val server = Server(
             Implementation(name = "test server", version = "1.0"),
             ServerOptions(capabilities = ServerCapabilities())
@@ -309,9 +309,9 @@ class ClientTest {
         assertTrue(ex.message?.startsWith("Client does not support") == true)
     }
 
-    @Disabled("Client can't connect due to issue with initialize request")
     @Test
     fun `should respect server notification capabilities`() = runTest {
+        TODO("Client can't connect due to issue with initialize request")
         val server = Server(
             Implementation(name = "test server", version = "1.0"),
             ServerOptions(
