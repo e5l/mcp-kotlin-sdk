@@ -88,22 +88,16 @@ sealed interface Request {
 }
 
 fun Request.toJSON(): JSONRPCRequest {
-    val encoded = when (this) {
-        is ClientRequest -> McpJson.encodeToJsonElement<ClientRequest>(this)
-        is ServerRequest -> McpJson.encodeToJsonElement<ServerRequest>(this)
-        is CustomRequest -> McpJson.encodeToJsonElement<CustomRequest>(this)
-        else -> error("Unknown type: ${this::class.qualifiedName}")
-    } as JsonObject
-
     return JSONRPCRequest(
         method = method.value,
-        params = encoded,
+        params = McpJson.encodeToJsonElement(this),
         jsonrpc = JSONRPC_VERSION,
     )
 }
 
 fun JSONRPCRequest.fromJSON(): Request {
-    return McpJson.decodeFromJsonElement<Request>(params)
+    val serializer = selectRequestDeserializer(method)
+    return McpJson.decodeFromJsonElement<Request>(serializer, params)
 }
 
 @Serializable
@@ -274,7 +268,7 @@ data class ClientCapabilities(
     )
 }
 
-@Serializable(with = ClientRequestPolymorphicSerializer::class)
+//@Serializable(with = ClientRequestPolymorphicSerializer::class)
 interface ClientRequest : Request
 
 @Serializable(with = ClientNotificationPolymorphicSerializer::class)
@@ -283,7 +277,7 @@ sealed interface ClientNotification : Notification
 @Serializable(with = ClientResultPolymorphicSerializer::class)
 sealed interface ClientResult : RequestResult
 
-@Serializable(with = ServerRequestPolymorphicSerializer::class)
+//@Serializable(with = ServerRequestPolymorphicSerializer::class)
 sealed interface ServerRequest : Request
 
 @Serializable(with = ServerNotificationPolymorphicSerializer::class)
