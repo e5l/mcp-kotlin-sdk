@@ -929,7 +929,7 @@ class CompatibilityCallToolResult(
 @Serializable
 data class CallToolRequest(
     val name: String,
-    val arguments: Map<String, JsonObject> = emptyMap(),
+    val arguments: JsonObject = EmptyJsonObject,
     override val _meta: JsonObject = EmptyJsonObject,
 ) : ClientRequest, WithMeta {
     override val method: Method = Method.Defined.ToolsCall
