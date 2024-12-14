@@ -32,14 +32,39 @@ private fun runDemo() {
         val transport = StdioClientTransport(process.inputStream, process.outputStream)
         runBlocking {
             client.connect(transport)
-            val tools = client.listTools()
-            System.err.println("Tools: ${tools?.tools?.joinToString { it.name }}")
 
-//            val prompts = client.listPrompts()
-//            System.err.println("Prompts: ${prompts?.prompts?.joinToString { it.name }}")
+            val serverCapabilities = client.getServerCapabilities()
 
-            val resources = client.listResources()
-            System.err.println("Resources: ${resources?.resources?.joinToString { it.name }}")
+
+            // Resources capability check
+            serverCapabilities?.resources?.let {
+                try {
+                    val resources = client.listResources()
+                    System.err.println("Resources: ${resources?.resources?.joinToString { it.name }}")
+                } catch (e: Exception) {
+                    System.err.println("Failed to list resources: ${e.message}")
+                }
+            }
+
+            // Tools capability check
+            serverCapabilities?.tools?.let {
+                try {
+                    val tools = client.listTools()
+                    System.err.println("Tools: ${tools?.tools?.joinToString { it.name }}")
+                } catch (e: Exception) {
+                    System.err.println("Failed to list tools: ${e.message}")
+                }
+            }
+
+            // Prompts capability check (commented out but showing proper structure)
+            serverCapabilities?.prompts?.let {
+                try {
+                    val prompts = client.listPrompts()
+                    System.err.println("Prompts: ${prompts?.prompts?.joinToString { it.name }}")
+                } catch (e: Exception) {
+                    System.err.println("Failed to list prompts: ${e.message}")
+                }
+            }
         }
     } finally {
         process?.destroy()
