@@ -10,7 +10,7 @@ import ClientResult
 import CompatibilityCallToolResult
 import CompleteRequest
 import CompleteResult
-import EmptyResult
+import EmptyRequestResult
 import GetPromptRequest
 import GetPromptResult
 import Implementation
@@ -244,7 +244,7 @@ open class Client(
     }
 
     suspend fun ping(options: RequestOptions? = null) {
-        request<EmptyResult>(PingRequest(), options)
+        request<EmptyRequestResult>(PingRequest(), options)
     }
 
     suspend fun complete(params: CompleteRequest.Params, options: RequestOptions? = null): CompleteResult? {
@@ -255,7 +255,7 @@ open class Client(
     }
 
     suspend fun setLoggingLevel(level: LoggingLevel, options: RequestOptions? = null) {
-        request<EmptyResult>(
+        request<EmptyRequestResult>(
             SetLevelRequest(SetLevelRequest.Params(level)),
             options
         )
@@ -303,14 +303,14 @@ open class Client(
     }
 
     suspend fun subscribeResource(params: SubscribeRequest.Params, options: RequestOptions? = null) {
-        request<EmptyResult>(
+        request<EmptyRequestResult>(
             SubscribeRequest(params = params),
             options
         )
     }
 
     suspend fun unsubscribeResource(params: UnsubscribeRequest.Params, options: RequestOptions? = null) {
-        request<EmptyResult>(
+        request<EmptyRequestResult>(
             UnsubscribeRequest(params = params),
             options
         )

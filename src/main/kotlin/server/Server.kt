@@ -3,7 +3,7 @@ package server
 import ClientCapabilities
 import CreateMessageRequest
 import CreateMessageResult
-import EmptyResult
+import EmptyRequestResult
 import Implementation
 import InitializeRequest
 import InitializeResult
@@ -212,8 +212,8 @@ open class Server(
         return _capabilities
     }
 
-    suspend fun ping(): EmptyResult {
-        return request<EmptyResult>(PingRequest())
+    suspend fun ping(): EmptyRequestResult {
+        return request<EmptyRequestResult>(PingRequest())
     }
 
     suspend fun createMessage(
