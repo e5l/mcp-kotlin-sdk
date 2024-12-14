@@ -8,7 +8,6 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.encodeToString
-import shared.AbortController
 import shared.McpJson
 import shared.Transport
 import java.util.concurrent.atomic.AtomicBoolean
@@ -32,7 +31,6 @@ class SseMcpClientTransport(
     private val initialized = AtomicBoolean(false)
     private var session: ClientSSESession by Delegates.notNull()
     private val endpoint = CompletableDeferred<String>()
-    private var _abortController: AbortController? = null
 
     override var onClose: (() -> Unit)? = null
     override var onError: ((Throwable) -> Unit)? = null
@@ -51,8 +49,6 @@ class SseMcpClientTransport(
                         "If using Client class, note that connect() calls start() automatically.",
             )
         }
-
-        this._abortController = AbortController()
 
         session = urlString?.let {
             client.sseSession(
@@ -135,7 +131,6 @@ class SseMcpClientTransport(
             error("SSEClientTransport is not initialized!")
         }
 
-        _abortController?.abort()
         session.cancel()
         onClose?.invoke()
         job?.cancelAndJoin()

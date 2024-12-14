@@ -3,7 +3,6 @@ package shared
 import CancelledNotification
 import ErrorCode
 import JSONRPCError
-import JSONRPCMessage
 import JSONRPCNotification
 import JSONRPCRequest
 import JSONRPCResponse
@@ -14,7 +13,6 @@ import PingRequest
 import Progress
 import ProgressNotification
 import Request
-import RequestId
 import RequestResult
 import fromJSON
 import kotlinx.coroutines.CompletableDeferred
@@ -112,19 +110,7 @@ data class RequestOptions(
 /**
  * Extra data given to request handlers.
  */
-data class RequestHandlerExtra(
-    /**
-     * A cancellation token used to communicate if the request was cancelled from the sender's side.
-     */
-    val signal: AbortSignal
-)
-
-
-class AbortController {
-    val signal = AbortSignal()
-
-    fun abort(reason: String? = null) {}
-}
+class RequestHandlerExtra()
 
 val COMPLETED = CompletableDeferred(Unit).also { it.complete(Unit) }
 
@@ -140,7 +126,6 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
 
     private val requestHandlers: MutableMap<String, suspend (request: JSONRPCRequest, extra: RequestHandlerExtra) -> SendResultT?> =
         mutableMapOf()
-    private val requestHandlerAbortControllers: MutableMap<RequestId, AbortController> = mutableMapOf()
     val notificationHandlers: MutableMap<String, suspend (notification: JSONRPCNotification) -> Unit> =
         mutableMapOf()
 
@@ -176,14 +161,6 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
     var fallbackNotificationHandler: (suspend (notification: JSONRPCNotification) -> Unit)? = null
 
     init {
-        setNotificationHandler<CancelledNotification>(Method.Defined.NotificationsCancelled) { notification ->
-            val controller: AbortController? = this.requestHandlerAbortControllers.get(
-                notification.requestId,
-            )
-            controller?.abort(notification.reason)
-            COMPLETED
-        }
-
         setNotificationHandler<ProgressNotification>(Method.Defined.NotificationsProgress) { notification ->
             this.onProgress(notification)
             COMPLETED
@@ -270,17 +247,9 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
             return
         }
 
-        val abortController = AbortController()
-        this.requestHandlerAbortControllers[request.id] = abortController
-
         try {
-            val result = handler(request, RequestHandlerExtra(signal = abortController.signal))
+            val result = handler(request, RequestHandlerExtra())
                 ?: error("No response for $request provided")
-
-            if (abortController.signal.aborted) {
-                return
-            }
-
 
             val response = JSONRPCResponse(
                 id = request.id,
@@ -290,9 +259,6 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
 
         } catch (cause: Throwable) {
             cause.printStackTrace(System.err)
-            if (abortController.signal.aborted) {
-                return
-            }
 
             transport?.send(JSONRPCResponse(
                 id = request.id,
@@ -301,8 +267,6 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
                     message = cause.message ?: "Internal error",
                 )
             ))
-        } finally {
-            requestHandlerAbortControllers.remove(request.id)
         }
     }
 
@@ -375,14 +339,6 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
      * This should be implemented by subclasses.
      */
     protected abstract fun assertRequestHandlerCapability(method: Method)
-
-    fun clearTimeout(id: Any?) {
-        TODO()
-    }
-
-    fun setTimeout(block: suspend () -> Unit, timeout: Duration): Any {
-        return Unit
-    }
 
     /**
      * Sends a request and wait for a response.

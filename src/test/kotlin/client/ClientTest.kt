@@ -440,7 +440,6 @@ class ClientTest {
 
         server.setRequestHandler<ListResourcesRequest>(Method.Defined.ResourcesList) { _, extra ->
             // Simulate a delayed response
-            val signal = extra.signal
             // Wait ~100ms unless cancelled
             try {
                 kotlinx.coroutines.withTimeout(100L) {
