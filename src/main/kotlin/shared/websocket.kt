@@ -76,7 +76,7 @@ abstract class WebSocketMcpTransport : Transport {
         }
 
         @OptIn(InternalCoroutinesApi::class)
-        session.coroutineContext.job.invokeOnCompletion(onCancelling = true) {
+        session.coroutineContext.job.invokeOnCompletion {
             if (it != null) {
                 onError?.invoke(it)
             } else {
@@ -99,5 +99,6 @@ abstract class WebSocketMcpTransport : Transport {
         }
 
         session.close()
+        session.coroutineContext.job.join()
     }
 }
