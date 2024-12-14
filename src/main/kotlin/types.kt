@@ -204,7 +204,7 @@ sealed interface ErrorCode {
  * A response to a request that indicates an error occurred.
  */
 @Serializable
-class JSONRPCError(
+data class JSONRPCError(
     val code: ErrorCode,
     val message: String,
     val data: JsonObject = EmptyJsonObject,
@@ -868,7 +868,7 @@ data class Tool(
     /**
      * A JSON object defining the expected parameters for the tool.
      */
-    val input: Input,
+    val inputSchema: Input,
 ) {
     @Serializable
     data class Input(
