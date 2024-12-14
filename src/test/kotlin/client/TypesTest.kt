@@ -18,4 +18,10 @@ class TypesTest {
         val message = "{\"method\":\"initialize\", \"protocolVersion\":\"2024-11-05\",\"capabilities\":{\"experimental\":{},\"sampling\":{}},\"clientInfo\":{\"name\":\"test client\",\"version\":\"1.0\"},\"_meta\":{}}"
         McpJson.decodeFromString<Request>(message)
     }
+
+    @Test
+    fun testJSONRPCMessage() {
+        val line = "{\"result\":{\"content\":[{\"type\":\"text\"}],\"isError\":false},\"jsonrpc\":\"2.0\",\"id\":4}"
+        McpJson.decodeFromString<JSONRPCMessage>(line)
+    }
 }

@@ -36,6 +36,7 @@ fun main(args: Array<String>) {
             }
             runSseServer(port)
         }
+
         else -> {
             System.err.println("Unknown argument: $first")
         }
@@ -77,10 +78,15 @@ private fun runDemo() {
 
                     val tools = client.listTools()
                     System.err.println(tools?.tools?.joinToString(", ") { tool -> tool.name })
-                    tools?.tools?.forEachIndexed { i, tool ->
-                        System.err.println("$i out of ${tools.tools.size}: ${tool.name}")
-                        callTool(client, tool)
+
+                    tools?.tools?.reversed()?.find { it.name == "toggle_debugger_breakpoint" }?.let {
+                        callTool(client, it)
                     }
+
+//                    tools?.tools?.reversed()?.forEachIndexed { i, tool ->
+//                        System.err.println("$i out of ${tools.tools.size}: ${tool.name}")
+//                        callTool(client, tool)
+//                    }
                 } catch (e: Exception) {
                     System.err.println("Failed to list tools: ${e.message}")
                 }
@@ -107,7 +113,12 @@ private suspend fun callTool(client: Client, tool: Tool) {
     val map = fillSchema(tool.inputSchema)
 
     System.err.println("calling: ${tool.name}: $map")
-    val result = client.callTool(CallToolRequest(tool.name, map))
+    val result = try {
+        client.callTool(CallToolRequest(tool.name, map))
+    } catch (e: Exception) {
+        System.err.println("Failed to call tool ${tool.name}: ${e.message}")
+        return
+    }
     System.err.println("Result:  ${result?.content?.first()}\n")
 }
 
@@ -120,7 +131,7 @@ private fun fillSchema(schema: Tool.Input): JsonObject {
                 "number" -> JsonPrimitive(42)
                 "boolean" -> JsonPrimitive(true)
                 else -> {
-                    System.err.println("Unknown type: $type")
+                    System.err.println("+".repeat(30) + " Unknown type: $type " + "+".repeat(30))
                     JsonPrimitive("Unknown")
                 }
             }
@@ -203,7 +214,7 @@ fun runSseServer(port: Int): Unit = runBlocking {
         options
     )
 
-    embeddedServer(CIO, host="0.0.0.0", port = port) {
+    embeddedServer(CIO, host = "0.0.0.0", port = port) {
         install(SSE)
         routing {
             mcpSse(options) {
