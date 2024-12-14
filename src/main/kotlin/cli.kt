@@ -1,13 +1,17 @@
 import client.Client
 import client.StdioClientTransport
-import io.ktor.server.application.install
+import io.ktor.server.application.*
 import io.ktor.server.cio.*
-import io.ktor.server.engine.embeddedServer
-import io.ktor.server.routing.routing
-import io.ktor.server.sse.SSE
+import io.ktor.server.engine.*
+import io.ktor.server.routing.*
+import io.ktor.server.sse.*
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
 import server.Server
 import server.ServerOptions
 import server.StdioServerTransport
@@ -68,8 +72,14 @@ private fun runDemo() {
             // Tools capability check
             serverCapabilities?.tools?.let {
                 try {
+
+//                    val terminal = client.callTool(CallToolRequest("execute_terminal_command", buildJsonObject { put("command", "ls") }))
+//                    System.err.println(terminal?.content?.first())
+
                     val tools = client.listTools()
-                    tools?.tools?.forEach { tool ->
+                    System.err.println(tools?.tools?.joinToString(", ") { tool -> tool.name })
+                    tools?.tools?.forEachIndexed { i, tool ->
+                        System.err.println("$i out of ${tools.tools.size}: ${tool.name}")
                         callTool(client, tool)
                     }
                 } catch (e: Exception) {
@@ -95,8 +105,24 @@ private fun runDemo() {
 private suspend fun callTool(client: Client, tool: Tool) {
     System.err.println(tool.name)
     System.err.println(tool.inputSchema)
-    val result = client.callTool(CallToolRequest(tool.name))
+
+    val map = fillSchema(tool.inputSchema)
+
+    System.err.println("call Tool ${tool.name} : $map")
+    val result = client.callTool(CallToolRequest(tool.name, map))
     System.err.println("Tool result: ${result?.content?.first()}")
+}
+
+private fun fillSchema(schema: Tool.Input): JsonObject {
+    return buildJsonObject {
+        schema.properties.forEach { name, elt ->
+            val type = (elt.jsonObject["type"] as JsonPrimitive).content
+            if (type == "string") {
+                put(name, JsonPrimitive("2"))
+            }
+        }
+    }
+
 }
 
 private fun runServer() {
@@ -130,6 +156,17 @@ private fun runServer() {
         ListToolsResult(
             tools = tools,
             nextCursor = null,
+        )
+    }
+
+    server.setRequestHandler<CallToolRequest>(Method.Defined.ToolsCall) { request, _ ->
+        val result: Array<PromptMessageContent> = arrayOf(
+            TextContent(
+                text = "Hello, world!"
+            )
+        )
+        CallToolResult(
+            content = result,
         )
     }
 
