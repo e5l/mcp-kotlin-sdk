@@ -72,7 +72,6 @@ private fun runDemo() {
             // Tools capability check
             serverCapabilities?.tools?.let {
                 try {
-
 //                    val terminal = client.callTool(CallToolRequest("execute_terminal_command", buildJsonObject { put("command", "ls") }))
 //                    System.err.println(terminal?.content?.first())
 
@@ -103,23 +102,29 @@ private fun runDemo() {
 }
 
 private suspend fun callTool(client: Client, tool: Tool) {
-    System.err.println(tool.name)
     System.err.println(tool.inputSchema)
 
     val map = fillSchema(tool.inputSchema)
 
-    System.err.println("call Tool ${tool.name} : $map")
+    System.err.println("calling: ${tool.name}: $map")
     val result = client.callTool(CallToolRequest(tool.name, map))
-    System.err.println("Tool result: ${result?.content?.first()}")
+    System.err.println("Result:  ${result?.content?.first()}\n")
 }
 
 private fun fillSchema(schema: Tool.Input): JsonObject {
     return buildJsonObject {
         schema.properties.forEach { name, elt ->
             val type = (elt.jsonObject["type"] as JsonPrimitive).content
-            if (type == "string") {
-                put(name, JsonPrimitive("2"))
+            val value = when (type) {
+                "string" -> JsonPrimitive("Hello")
+                "number" -> JsonPrimitive(42)
+                "boolean" -> JsonPrimitive(true)
+                else -> {
+                    System.err.println("Unknown type: $type")
+                    JsonPrimitive("Unknown")
+                }
             }
+            put(name, value)
         }
     }
 
