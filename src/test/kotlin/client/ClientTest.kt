@@ -5,15 +5,20 @@ import CreateMessageRequest
 import CreateMessageResult
 import EmptyJsonObject
 import Implementation
+import InMemoryTransport
+import InitializeRequest
 import InitializeResult
 import JSONRPCMessage
 import JSONRPCRequest
 import JSONRPCResponse
 import LATEST_PROTOCOL_VERSION
+import ListResourcesRequest
 import ListResourcesResult
 import ListRootsRequest
+import ListToolsRequest
 import ListToolsResult
 import LoggingLevel
+import LoggingMessageNotification
 import Method
 import Role
 import SUPPORTED_PROTOCOL_VERSIONS
@@ -22,12 +27,8 @@ import TextContent
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import server.Server
 import server.ServerOptions
@@ -191,7 +192,6 @@ class ClientTest {
         assertTrue(closed)
     }
 
-    @Disabled("Client can't connect due to issue with initialize request")
     @Test
     fun `should respect server capabilities`() = runTest {
         val serverOptions = ServerOptions(
@@ -205,7 +205,7 @@ class ClientTest {
             serverOptions
         )
 
-        server.setRequestHandler<InitializeResult>(Method.Defined.Initialize) { request, _ ->
+        server.setRequestHandler<InitializeRequest>(Method.Defined.Initialize) { request, _ ->
             InitializeResult(
                 protocolVersion = LATEST_PROTOCOL_VERSION,
                 capabilities = ServerCapabilities(
@@ -216,11 +216,11 @@ class ClientTest {
             )
         }
 
-        server.setRequestHandler<ListResourcesResult>(Method.Defined.ResourcesList) { request, _ ->
+        server.setRequestHandler<ListResourcesRequest>(Method.Defined.ResourcesList) { request, _ ->
             ListResourcesResult(resources = emptyArray(), nextCursor = null)
         }
 
-        server.setRequestHandler<ListToolsResult>(Method.Defined.ToolsList) { request, _ ->
+        server.setRequestHandler<ListToolsRequest>(Method.Defined.ToolsList) { request, _ ->
             ListToolsResult(tools = emptyArray(), nextCursor = null)
         }
 
@@ -343,7 +343,7 @@ class ClientTest {
             put("isStudent", false)
         }
         server.sendLoggingMessage(
-            LoggingMessageNotification.Params(
+            LoggingMessageNotification(
                 level = LoggingLevel.info,
                 data = jsonObject
             )

@@ -16,14 +16,13 @@ import Request
 import RequestId
 import RequestResult
 import fromJSON
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.ClassDiscriminatorMode
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.*
 import toJSON
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -178,9 +177,9 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
     init {
         setNotificationHandler<CancelledNotification>(Method.Defined.NotificationsCancelled) { notification ->
             val controller: AbortController? = this.requestHandlerAbortControllers.get(
-                notification.params.requestId,
+                notification.requestId,
             )
-            controller?.abort(notification.params.reason)
+            controller?.abort(notification.reason)
             COMPLETED
         }
 
@@ -254,7 +253,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
 //        )
     }
 
-    private fun onRequest(request: JSONRPCRequest) {
+    private suspend fun onRequest(request: JSONRPCRequest) {
         val handler = requestHandlers[request.method] ?: this.fallbackRequestHandler
 
         if (handler === null) {
@@ -276,41 +275,41 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
         val abortController = AbortController()
         this.requestHandlerAbortControllers[request.id] = abortController
 
-        // Starting with Deferred.resolve() puts any synchronous errors into the monad as well.
-        GlobalScope.launch {
-            try {
-                val result = handler(request, RequestHandlerExtra(signal = abortController.signal))
-                if (abortController.signal.aborted) {
-                    return@launch
-                }
+        try {
+            val result = handler(request, RequestHandlerExtra(signal = abortController.signal))
+                ?: error("No response for $request provided")
 
-//                val sendResult = _transport?.send({
-//                    result,
-//                    jsonrpc: "2.0",
-//                    id: request.id,
-//                })
-            } catch (cause: Throwable) {
-                cause.printStackTrace(System.err)
-                if (abortController.signal.aborted) {
-                    return@launch
-                }
-
-//                val sendResult = _transport?.send({
-//                    result,
-//                    jsonrpc: "2.0",
-//                    id: request.id,
-//                })
-            } finally {
-                requestHandlerAbortControllers.remove(request.id)
+            if (abortController.signal.aborted) {
+                return
             }
+
+
+            val response = JSONRPCResponse(
+                id = request.id,
+                result = result
+            )
+            transport?.send(response)
+
+        } catch (cause: Throwable) {
+            cause.printStackTrace(System.err)
+            if (abortController.signal.aborted) {
+                return
+            }
+
+//                val sendResult = _transport?.send({
+//                    result,
+//                    jsonrpc: "2.0",
+//                    id: request.id,
+//                })
+        } finally {
+            requestHandlerAbortControllers.remove(request.id)
         }
     }
 
     private fun onProgress(notification: ProgressNotification) {
-        val params = notification.params
-        val progress = params.progress
-        val total = params.total
-        val progressToken = params.progressToken
+        val progress = notification.progress
+        val total = notification.total
+        val progressToken = notification.progressToken
 
         val handler = this.progressHandlers[progressToken]
         if (handler == null) {
@@ -436,13 +435,11 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
             responseHandlers.remove(messageId)
             progressHandlers.remove(messageId)
 
-            val notification = CancelledNotification(
-                params = CancelledNotification.Params(requestId = messageId, reason = reason.message ?: "Unknown")
-            )
+            val notification = CancelledNotification(requestId = messageId, reason = reason.message ?: "Unknown")
 
             val serialized = JSONRPCNotification(
                 notification.method.value,
-                params = McpJson.encodeToJsonElement(notification.params) as JsonObject
+                params = McpJson.encodeToJsonElement(notification)
             )
             transport.send(serialized)
 
@@ -488,14 +485,16 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
      *
      * Note that this will replace any previous request handler for the same method.
      */
-    fun <T> setRequestHandler(
+    fun <T : Request> setRequestHandler(
         method: Method,
         block: suspend (T, RequestHandlerExtra) -> SendResultT?
     ) {
         assertRequestHandlerCapability(method)
 
         requestHandlers[method.value] = { a, b ->
-            block(a.fromJSON() as T, b)
+            val fromJSON = a.fromJSON()
+            val p1 = fromJSON as T
+            block(p1, b)
         }
     }
 

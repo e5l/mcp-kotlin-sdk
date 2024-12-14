@@ -60,7 +60,7 @@ private fun runServer() {
         }
     )
 
-    server.setRequestHandler<ListToolsResult>(Method.Defined.ToolsList) { request, _ ->
+    server.setRequestHandler<ListToolsRequest>(Method.Defined.ToolsList) { request, _ ->
         val tools = arrayOf(
             Tool(
                 name = "Test Tool",

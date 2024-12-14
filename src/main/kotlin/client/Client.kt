@@ -29,7 +29,6 @@ import ListToolsResult
 import LoggingLevel
 import LoggingMessageNotification.SetLevelRequest
 import Method
-import PaginatedRequest
 import PingRequest
 import ReadResourceRequest
 import ReadResourceResult
@@ -97,11 +96,9 @@ open class Client(
 
         try {
             val message = InitializeRequest(
-                params = InitializeRequest.Params(
-                    protocolVersion = LATEST_PROTOCOL_VERSION,
-                    capabilities = capabilities,
-                    clientInfo = clientInfo
-                )
+                protocolVersion = LATEST_PROTOCOL_VERSION,
+                capabilities = capabilities,
+                clientInfo = clientInfo
             )
             val result = request<InitializeResult>(message)
 
@@ -247,99 +244,90 @@ open class Client(
         request<EmptyRequestResult>(PingRequest(), options)
     }
 
-    suspend fun complete(params: CompleteRequest.Params, options: RequestOptions? = null): CompleteResult? {
-        return request<CompleteResult>(
-            CompleteRequest(params),
-            options
-        )
+    suspend fun complete(params: CompleteRequest, options: RequestOptions? = null): CompleteResult? {
+        return request<CompleteResult>(params, options)
     }
 
     suspend fun setLoggingLevel(level: LoggingLevel, options: RequestOptions? = null) {
         request<EmptyRequestResult>(
-            SetLevelRequest(SetLevelRequest.Params(level)),
+            SetLevelRequest(level),
             options
         )
     }
 
-    suspend fun getPrompt(params: GetPromptRequest.Params, options: RequestOptions? = null): GetPromptResult? {
-        return request<GetPromptResult>(
-            GetPromptRequest(params),
-            options
-        )
+    suspend fun getPrompt(request: GetPromptRequest, options: RequestOptions? = null): GetPromptResult? {
+        return request<GetPromptResult>(request, options)
     }
 
     suspend fun listPrompts(
-        params: PaginatedRequest.Params = PaginatedRequest.Params.Empty,
+        request: ListPromptsRequest = ListPromptsRequest(),
         options: RequestOptions? = null,
     ): ListPromptsResult? {
-        return request<ListPromptsResult>(ListPromptsRequest(params = params), options)
+        return request<ListPromptsResult>(request, options)
     }
 
     suspend fun listResources(
-        params: PaginatedRequest.Params = PaginatedRequest.Params.Empty,
+        request: ListResourcesRequest = ListResourcesRequest(),
         options: RequestOptions? = null,
     ): ListResourcesResult? {
-        return request<ListResourcesResult>(
-            ListResourcesRequest(params),
-            options
-        )
+        return request<ListResourcesResult>(request, options)
     }
 
     suspend fun listResourceTemplates(
-        params: PaginatedRequest.Params = PaginatedRequest.Params.Empty,
+        request: ListResourceTemplatesRequest,
         options: RequestOptions? = null,
     ): ListResourceTemplatesResult? {
         return request<ListResourceTemplatesResult>(
-            ListResourceTemplatesRequest(params),
+            request,
             options
         )
     }
 
-    suspend fun readResource(params: ReadResourceRequest.Params, options: RequestOptions? = null): ReadResourceResult? {
+    suspend fun readResource(request: ReadResourceRequest, options: RequestOptions? = null): ReadResourceResult? {
         return request<ReadResourceResult>(
-            ReadResourceRequest(params = params),
+            request,
             options
         )
     }
 
-    suspend fun subscribeResource(params: SubscribeRequest.Params, options: RequestOptions? = null) {
+    suspend fun subscribeResource(request: SubscribeRequest, options: RequestOptions? = null) {
         request<EmptyRequestResult>(
-            SubscribeRequest(params = params),
+            request,
             options
         )
     }
 
-    suspend fun unsubscribeResource(params: UnsubscribeRequest.Params, options: RequestOptions? = null) {
+    suspend fun unsubscribeResource(request: UnsubscribeRequest, options: RequestOptions? = null) {
         request<EmptyRequestResult>(
-            UnsubscribeRequest(params = params),
+            request,
             options
         )
     }
 
     suspend fun callTool(
-        params: CallToolRequest.Params,
+        reuquest: CallToolRequest,
         compatibility: Boolean = false,
         options: RequestOptions? = null,
     ): CallToolResultBase? {
         return if (compatibility) {
             request<CompatibilityCallToolResult>(
-                CallToolRequest(params = params),
+                reuquest,
                 options
             )
         } else {
             request<CallToolResult>(
-                CallToolRequest(params = params),
+                reuquest,
                 options
             )
         }
     }
 
     suspend fun listTools(
-        params: PaginatedRequest.Params = PaginatedRequest.Params.Empty,
+        request: ListToolsRequest = ListToolsRequest(),
         options: RequestOptions? = null,
     ): ListToolsResult? =
         request<ListToolsResult>(
-            ListToolsRequest(params),
+            request,
             options
         )
 
