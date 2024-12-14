@@ -904,7 +904,7 @@ class ListToolsResult(
  */
 @Serializable
 sealed interface CallToolResultBase : ServerResult {
-    val content: PromptMessageContent
+    val content: Array<PromptMessageContent>
     val isError: Boolean? get() = false
 }
 
@@ -912,8 +912,8 @@ sealed interface CallToolResultBase : ServerResult {
  * The server's response to a tool call.
  */
 @Serializable
-data class CallToolResult(
-    override val content: PromptMessageContent,
+class CallToolResult(
+    override val content: Array<PromptMessageContent>,
     override val isError: Boolean? = false,
     override val _meta: JsonObject = EmptyJsonObject,
 ) : CallToolResultBase
@@ -922,8 +922,8 @@ data class CallToolResult(
  * [CallToolResult] extended with backwards compatibility to protocol version 2024-10-07.
  */
 @Serializable
-data class CompatibilityCallToolResult(
-    override val content: PromptMessageContent,
+class CompatibilityCallToolResult(
+    override val content: Array<PromptMessageContent>,
     override val isError: Boolean? = false,
     override val _meta: JsonObject = EmptyJsonObject,
     val toolResult: JsonObject = EmptyJsonObject,

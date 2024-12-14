@@ -50,11 +50,8 @@ private fun runDemo() {
             serverCapabilities?.tools?.let {
                 try {
                     val tools = client.listTools()
-                    System.err.println("Tools: ${tools?.tools?.joinToString { it.name }}")
-
-                    tools?.tools?.find({ it.name == "get_open_in_editor_file_path" })?.let { tool ->
-                        val result = client.callTool(CallToolRequest(tool.name))
-                        System.err.println("Tool result: $result")
+                    tools?.tools?.forEach { tool ->
+                        callTool(client, tool)
                     }
                 } catch (e: Exception) {
                     System.err.println("Failed to list tools: ${e.message}")
@@ -74,6 +71,13 @@ private fun runDemo() {
     } finally {
         process?.destroy()
     }
+}
+
+private suspend fun callTool(client: Client, tool: Tool) {
+    System.err.println(tool.name)
+    System.err.println(tool.inputSchema)
+    val result = client.callTool(CallToolRequest(tool.name))
+    System.err.println("Tool result: ${result?.content?.first()}")
 }
 
 private fun runServer() {

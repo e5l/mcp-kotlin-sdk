@@ -113,6 +113,7 @@ internal object ResourceContentsPolymorphicSerializer :
 private fun selectClientRequestDeserializer(element: JsonElement): DeserializationStrategy<ClientRequest>? {
     val value = element.jsonObject.getOrDefault("method", null) ?: run {
         System.err.println("No method in $element")
+        Throwable().printStackTrace(System.err)
         return null
     }
     return when (value.jsonPrimitive.content) {

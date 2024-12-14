@@ -452,11 +452,12 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
     ) {
         assertRequestHandlerCapability(method)
 
-        requestHandlers[method.value] = { a, b ->
-            val fromJSON = a.fromJSON()
+        requestHandlers[method.value] = { request, extraHandler ->
+            System.err.println("from JSON _before: $request") // TODO("REMOVE")
+            val fromJSON = request.fromJSON()
             System.err.println("from JSON: $fromJSON")
             val p1 = fromJSON as T
-            block(p1, b)
+            block(p1, extraHandler)
         }
     }
 
