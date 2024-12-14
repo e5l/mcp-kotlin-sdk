@@ -425,7 +425,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
             }
 
             if (response?.error != null) {
-                result.completeExceptionally(IllegalStateException(response.error.message))
+                result.completeExceptionally(IllegalStateException(response.error.toString()))
                 return@set
             }
 

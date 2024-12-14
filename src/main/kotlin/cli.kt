@@ -33,7 +33,13 @@ private fun runDemo() {
         runBlocking {
             client.connect(transport)
             val tools = client.listTools()
-            System.err.println("Tools: $tools")
+            System.err.println("Tools: ${tools?.tools?.joinToString { it.name }}")
+
+//            val prompts = client.listPrompts()
+//            System.err.println("Prompts: ${prompts?.prompts?.joinToString { it.name }}")
+
+            val resources = client.listResources()
+            System.err.println("Resources: ${resources?.resources?.joinToString { it.name }}")
         }
     } finally {
         process?.destroy()
@@ -65,7 +71,7 @@ private fun runServer() {
             Tool(
                 name = "Test Tool",
                 description = "A test tool",
-                input = Tool.Input(),
+                inputSchema = Tool.Input(),
             )
         )
         ListToolsResult(
