@@ -48,7 +48,7 @@ class ReadBuffer {
 }
 
 fun deserializeMessage(line: String): JSONRPCMessage {
-    return McpJson.decodeFromString(line)
+    return McpJson.decodeFromString<JSONRPCMessage>(line)
 }
 
 fun serializeMessage(message: JSONRPCMessage): String {
