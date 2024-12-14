@@ -95,8 +95,9 @@ fun Request.toJSON(): JSONRPCRequest {
     )
 }
 
-fun JSONRPCRequest.fromJSON(): Request {
+fun JSONRPCRequest.fromJSON(): Request? {
     val serializer = selectRequestDeserializer(method)
+    val params = params ?: return null
     return McpJson.decodeFromJsonElement<Request>(serializer, params)
 }
 
@@ -143,7 +144,7 @@ sealed interface JSONRPCMessage
 data class JSONRPCRequest(
     val id: RequestId = REQUEST_MESSAGE_ID.incrementAndGet(),
     val method: String,
-    val params: JsonElement,
+    val params: JsonElement? = null,
     val jsonrpc: String = JSONRPC_VERSION,
 ) : JSONRPCMessage
 

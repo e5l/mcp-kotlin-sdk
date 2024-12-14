@@ -232,7 +232,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
 
         if (handler === null) {
             try {
-                transport?.send(
+                transport!!.send(
                     JSONRPCResponse(
                         id = request.id,
                         error = JSONRPCError(
@@ -249,18 +249,17 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
 
         try {
             val result = handler(request, RequestHandlerExtra())
-                ?: error("No response for $request provided")
 
             val response = JSONRPCResponse(
                 id = request.id,
                 result = result
             )
-            transport?.send(response)
+            transport!!.send(response)
 
         } catch (cause: Throwable) {
             cause.printStackTrace(System.err)
 
-            transport?.send(JSONRPCResponse(
+            transport!!.send(JSONRPCResponse(
                 id = request.id,
                 error = JSONRPCError(
                     ErrorCode.Defined.InternalError,
@@ -446,16 +445,14 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
      *
      * Note that this will replace any previous request handler for the same method.
      */
-    fun <T : Request> setRequestHandler(
+    fun <T : Request?> setRequestHandler(
         method: Method,
         block: suspend (T, RequestHandlerExtra) -> SendResultT?
     ) {
         assertRequestHandlerCapability(method)
 
         requestHandlers[method.value] = { request, extraHandler ->
-            System.err.println("from JSON _before: $request") // TODO("REMOVE")
             val fromJSON = request.fromJSON()
-            System.err.println("from JSON: $fromJSON")
             val p1 = fromJSON as T
             block(p1, extraHandler)
         }

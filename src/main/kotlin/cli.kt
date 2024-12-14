@@ -6,6 +6,7 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.routing.routing
 import io.ktor.server.sse.SSE
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import server.Server
 import server.ServerOptions
@@ -163,7 +164,11 @@ fun runSseServer(port: Int): Unit = runBlocking {
     embeddedServer(CIO, host="0.0.0.0", port = port) {
         install(SSE)
         routing {
-            mcpSse(options)
+            mcpSse(options) {
+                while (true) {
+                    delay(100)
+                }
+            }
         }
     }.start(wait = true)
 }
