@@ -86,15 +86,11 @@ class StdioServerTransport(
             }
 
             if (message == null) break
-            // Invoke onMessage asynchronously
-            onMessage?.let { handler ->
-                scope.launch {
-                    try {
-                        handler(message)
-                    } catch (e: Throwable) {
-                        onError?.invoke(e)
-                    }
-                }
+            // Async invocation broke delivery order
+            try {
+                onMessage?.invoke(message)
+            } catch (e: Throwable) {
+                onError?.invoke(e)
             }
         }
     }
