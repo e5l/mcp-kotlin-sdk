@@ -290,6 +290,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
 //                    id: request.id,
 //                })
             } catch (cause: Throwable) {
+                cause.printStackTrace(System.err)
                 if (abortController.signal.aborted) {
                     return@launch
                 }
