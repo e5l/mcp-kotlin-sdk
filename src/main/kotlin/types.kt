@@ -571,7 +571,7 @@ data class ListResourcesRequest(
 @Serializable
 class ListResourcesResult(
     val resources: Array<Resource>,
-    override val nextCursor: Cursor?,
+    override val nextCursor: Cursor? = null,
     override val _meta: JsonObject = EmptyJsonObject,
 ) : ServerResult, PaginatedResult
 

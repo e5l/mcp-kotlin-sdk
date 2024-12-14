@@ -3,6 +3,7 @@ package shared
 import CancelledNotification
 import ErrorCode
 import JSONRPCError
+import JSONRPCMessage
 import JSONRPCNotification
 import JSONRPCRequest
 import JSONRPCResponse
@@ -242,33 +243,30 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
         val handler = function ?: property
 
         if (handler == null) return
-        handler(notification)
-
-//        // Starting with Deferred.resolve() puts any synchronous errors into the monad as well.
-//        Deferred.resolve().then(() -> handler(notification))
-//        .catch((error) ->
-//        this._onerror(
-//            Error("Uncaught error in notification handler: ${error}"),
-//        )
-//        )
+        try {
+            handler(notification)
+        } catch (cause: Throwable) {
+            onError(cause)
+        }
     }
 
     private suspend fun onRequest(request: JSONRPCRequest) {
         val handler = requestHandlers[request.method] ?: this.fallbackRequestHandler
 
         if (handler === null) {
-//            this._transport?.send({
-//                jsonrpc: "2.0",
-//                id: request.id,
-//                error: {
-//                code: ErrorCode.MethodNotFound,
-//                message: "Method not found",
-//            },
-//            }).catch((error) ->
-//            this._onerror(
-//                Error("Failed to send an error response: ${error}"),
-//            ),
-//            )
+            try {
+                transport?.send(
+                    JSONRPCResponse(
+                        id = request.id,
+                        error = JSONRPCError(
+                            ErrorCode.Defined.MethodNotFound,
+                            message = "Server does not support ${request.method}",
+                        )
+                    )
+                )
+            } catch (cause: Throwable) {
+                onError(cause)
+            }
             return
         }
 
@@ -296,11 +294,13 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
                 return
             }
 
-//                val sendResult = _transport?.send({
-//                    result,
-//                    jsonrpc: "2.0",
-//                    id: request.id,
-//                })
+            transport?.send(JSONRPCResponse(
+                id = request.id,
+                error = JSONRPCError(
+                    ErrorCode.Defined.InternalError,
+                    message = cause.message ?: "Internal error",
+                )
+            ))
         } finally {
             requestHandlerAbortControllers.remove(request.id)
         }
@@ -424,6 +424,11 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
                 return@set
             }
 
+            if (response?.error != null) {
+                result.completeExceptionally(IllegalStateException(response.error.message))
+                return@set
+            }
+
             try {
                 result.complete(response!!.result as T)
             } catch (error: Throwable) {
@@ -493,6 +498,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
 
         requestHandlers[method.value] = { a, b ->
             val fromJSON = a.fromJSON()
+            System.err.println("from JSON: $fromJSON")
             val p1 = fromJSON as T
             block(p1, b)
         }

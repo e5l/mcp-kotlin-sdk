@@ -111,7 +111,11 @@ internal object ResourceContentsPolymorphicSerializer :
 }
 
 private fun selectClientRequestDeserializer(element: JsonElement): DeserializationStrategy<ClientRequest>? {
-    return when (element.jsonObject.getValue("method").jsonPrimitive.content) {
+    val value = element.jsonObject.getOrDefault("method", null) ?: run {
+        System.err.println("No method in $element")
+        return null
+    }
+    return when (value.jsonPrimitive.content) {
         Method.Defined.Ping.value -> PingRequest.serializer()
         Method.Defined.Initialize.value -> InitializeRequest.serializer()
         Method.Defined.CompletionComplete.value -> CompleteRequest.serializer()

@@ -24,16 +24,16 @@ import ServerNotification
 import ServerRequest
 import ServerResult
 import ToolListChangedNotification
-import WithMeta
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.serialization.json.JsonObject
 import shared.Protocol
 import shared.ProtocolOptions
 import shared.RequestOptions
 
-data class ServerOptions(
-    val capabilities: ServerCapabilities
-) : ProtocolOptions()
+class ServerOptions(
+    val capabilities: ServerCapabilities,
+    enforceStrictCapabilities: Boolean = true,
+) : ProtocolOptions(enforceStrictCapabilities = enforceStrictCapabilities)
 
 /**
  * An MCP server on top of a pluggable transport.
