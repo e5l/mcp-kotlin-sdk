@@ -38,12 +38,12 @@ dependencies {
     implementation("io.ktor:ktor-client-cio:3.0.2")
     implementation("io.ktor:ktor-server-sse:3.0.2")
     implementation("io.ktor:ktor-server-websockets:3.0.2")
+    implementation("io.ktor:ktor-server-cio:3.0.2")
     testImplementation(kotlin("test"))
     testImplementation("io.mockk:mockk:1.13.13")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-debug:1.9.0")
     testImplementation("io.ktor:ktor-server-test-host:3.0.2")
-    testImplementation("io.ktor:ktor-server-cio:3.0.2")
     testImplementation("org.jetbrains.kotlin:kotlin-test:2.0.21")
 }
 

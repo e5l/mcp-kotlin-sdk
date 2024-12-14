@@ -1,10 +1,16 @@
 import client.Client
 import client.StdioClientTransport
+import io.ktor.server.application.install
+import io.ktor.server.cio.*
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.routing.routing
+import io.ktor.server.sse.SSE
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import server.Server
 import server.ServerOptions
 import server.StdioServerTransport
+import server.mcpSse
 
 fun main(args: Array<String>) {
     if (args.isEmpty())
@@ -13,6 +19,18 @@ fun main(args: Array<String>) {
     when (first) {
         "--server" -> runServer()
         "--demo" -> runDemo()
+        "--sse-server" -> {
+            if (args.size < 2) {
+                System.err.println("Missing port argument")
+                return
+            }
+            val port = args[1].toIntOrNull()
+            if (port == null) {
+                System.err.println("Invalid port: ${args[1]}")
+                return
+            }
+            runSseServer(port)
+        }
         else -> {
             System.err.println("Unknown argument: $first")
         }
@@ -125,4 +143,27 @@ private fun runServer() {
     }
 
     err.println("Server closed")
+}
+
+fun runSseServer(port: Int): Unit = runBlocking {
+    val options = ServerOptions(
+        capabilities = ServerCapabilities(
+            prompts = ServerCapabilities.Prompts(listChanged = null),
+            resources = ServerCapabilities.Resources(subscribe = null, listChanged = null),
+        )
+    )
+    val server = Server(
+        Implementation(
+            name = "mcp-kotlin test server",
+            version = "0.1.0"
+        ),
+        options
+    )
+
+    embeddedServer(CIO, host="0.0.0.0", port = port) {
+        install(SSE)
+        routing {
+            mcpSse(options)
+        }
+    }.start(wait = true)
 }
