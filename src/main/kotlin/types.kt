@@ -1082,7 +1082,7 @@ data class LoggingMessageNotification(
         /**
          * An optional name of the logger issuing this message.
          */
-        val logger: String?,
+        val logger: String? = null,
 
         /**
          * The data to be logged, such as a string message or an object. Any JSON serializable type is allowed here.
