@@ -51,6 +51,11 @@ private fun runDemo() {
                 try {
                     val tools = client.listTools()
                     System.err.println("Tools: ${tools?.tools?.joinToString { it.name }}")
+
+                    tools?.tools?.find({ it.name == "get_open_in_editor_file_path" })?.let { tool ->
+                        val result = client.callTool(CallToolRequest(tool.name))
+                        System.err.println("Tool result: $result")
+                    }
                 } catch (e: Exception) {
                     System.err.println("Failed to list tools: ${e.message}")
                 }
