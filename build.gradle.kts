@@ -1,28 +1,7 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.serialization)
-    application
 }
-
-application {
-    mainClass.set("org.jetbrains.kotlinx.mcp.CliKt")
-}
-
-tasks.jar {
-    manifest {
-        attributes["Main-Class"] = "org.jetbrains.kotlinx.mcp.CliKt"
-    }
-
-    // This will include all dependencies in the JAR
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-
-    from(sourceSets.main.get().output)
-    dependsOn(configurations.runtimeClasspath)
-    from({
-        configurations.runtimeClasspath.get().filter { it.name.endsWith("jar") }.map { zipTree(it) }
-    })
-}
-
 
 group = "org.jetbrains.mcp"
 version = "1.0-SNAPSHOT"
