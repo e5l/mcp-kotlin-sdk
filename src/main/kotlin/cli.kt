@@ -81,14 +81,12 @@ private fun runDemo() {
                     val tools = client.listTools()
                     System.err.println(tools?.tools?.joinToString(", ") { tool -> tool.name })
 
-                    tools?.tools?.reversed()?.find { it.name == "toggle_debugger_breakpoint" }?.let {
-                        callTool(client, it)
-                    }
+//                    tools?.tools?.reversed()?.find { it.name == "toggle_debugger_breakpoint" }?.let { callTool(client, it) }
 
-//                    tools?.tools?.reversed()?.forEachIndexed { i, tool ->
-//                        System.err.println("$i out of ${tools.tools.size}: ${tool.name}")
-//                        callTool(client, tool)
-//                    }
+                    tools?.tools?.reversed()?.forEachIndexed { i, tool ->
+                        System.err.println("$i out of ${tools.tools.size}: ${tool.name}")
+                        callTool(client, tool)
+                    }
                 } catch (e: Exception) {
                     System.err.println("Failed to list tools: ${e.message}")
                 }
