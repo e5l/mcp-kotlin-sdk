@@ -40,7 +40,6 @@ dependencies {
     implementation(libs.ktor.server.websockets)
     implementation(libs.kotlin.logging)
 
-
     testImplementation(libs.kotlin.test)
     testImplementation(libs.mockk)
     testImplementation(libs.ktor.server.test.host)
@@ -66,7 +65,7 @@ abstract class GenerateLibVersionTask @Inject constructor(
             package shared
 
             const val LIB_VERSION = "$libVersion"
-            
+
             """.trimIndent()
         )
     }
