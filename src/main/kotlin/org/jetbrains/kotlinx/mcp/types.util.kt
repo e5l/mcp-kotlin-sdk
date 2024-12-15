@@ -1,4 +1,6 @@
-import LoggingMessageNotification.SetLevelRequest
+package org.jetbrains.kotlinx.mcp
+
+import org.jetbrains.kotlinx.mcp.LoggingMessageNotification.SetLevelRequest
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
@@ -11,7 +13,7 @@ import kotlinx.serialization.json.*
 
 internal object ErrorCodeSerializer : KSerializer<ErrorCode> {
     override val descriptor: SerialDescriptor =
-        PrimitiveSerialDescriptor("ErrorCode", PrimitiveKind.STRING)
+        PrimitiveSerialDescriptor("org.jetbrains.kotlinx.mcp.ErrorCode", PrimitiveKind.STRING)
 
     @OptIn(ExperimentalSerializationApi::class)
     override fun serialize(encoder: Encoder, value: ErrorCode) {
@@ -27,7 +29,7 @@ internal object ErrorCodeSerializer : KSerializer<ErrorCode> {
 
 internal object RequestMethodSerializer : KSerializer<Method> {
     override val descriptor: SerialDescriptor =
-        PrimitiveSerialDescriptor("Method", PrimitiveKind.STRING)
+        PrimitiveSerialDescriptor("org.jetbrains.kotlinx.mcp.Method", PrimitiveKind.STRING)
 
     @OptIn(ExperimentalSerializationApi::class)
     override fun serialize(encoder: Encoder, value: Method) {
@@ -43,7 +45,7 @@ internal object RequestMethodSerializer : KSerializer<Method> {
 
 internal object StopReasonSerializer : KSerializer<StopReason> {
     override val descriptor: SerialDescriptor =
-        PrimitiveSerialDescriptor("StopReason", PrimitiveKind.STRING)
+        PrimitiveSerialDescriptor("org.jetbrains.kotlinx.mcp.StopReason", PrimitiveKind.STRING)
 
     @OptIn(ExperimentalSerializationApi::class)
     override fun serialize(encoder: Encoder, value: StopReason) {
@@ -132,13 +134,13 @@ internal fun selectClientRequestDeserializer(method: String): DeserializationStr
 }
 
 //internal object ClientRequestPolymorphicSerializer :
-//    JsonContentPolymorphicSerializer<ClientRequest>(ClientRequest::class) {
-//    override fun selectDeserializer(element: JsonElement): DeserializationStrategy<ClientRequest> {
+//    JsonContentPolymorphicSerializer<org.jetbrains.kotlinx.mcp.ClientRequest>(org.jetbrains.kotlinx.mcp.ClientRequest::class) {
+//    override fun selectDeserializer(element: JsonElement): DeserializationStrategy<org.jetbrains.kotlinx.mcp.ClientRequest> {
 //        val method = element.jsonObject.getOrDefault("method", null)?.jsonPrimitive?.content
 //            ?: error("No method in $element")
 //
-//        return selectClientRequestDeserializer(method)
-//            ?: UnknownMethodRequestOrNotification.serializer()
+//        return org.jetbrains.kotlinx.mcp.selectClientRequestDeserializer(method)
+//            ?: org.jetbrains.kotlinx.mcp.UnknownMethodRequestOrNotification.serializer()
 //    }
 //}
 
@@ -170,10 +172,10 @@ internal fun selectServerRequestDeserializer(method: String): DeserializationStr
 }
 
 //internal object ServerRequestPolymorphicSerializer :
-//    JsonContentPolymorphicSerializer<ServerRequest>(ServerRequest::class) {
-//    override fun selectDeserializer(element: JsonElement): DeserializationStrategy<ServerRequest> {
-//        return selectServerRequestDeserializer(element)
-//            ?: UnknownMethodRequestOrNotification.serializer()
+//    JsonContentPolymorphicSerializer<org.jetbrains.kotlinx.mcp.ServerRequest>(org.jetbrains.kotlinx.mcp.ServerRequest::class) {
+//    override fun selectDeserializer(element: JsonElement): DeserializationStrategy<org.jetbrains.kotlinx.mcp.ServerRequest> {
+//        return org.jetbrains.kotlinx.mcp.selectServerRequestDeserializer(element)
+//            ?: org.jetbrains.kotlinx.mcp.UnknownMethodRequestOrNotification.serializer()
 //    }
 //}
 
@@ -228,16 +230,16 @@ internal object RequestPolymorphicSerializer :
  * We deserialize by unique keys
  *
  * ```
- * CallToolResult {
- *     content: PromptMessageContent {
+ * org.jetbrains.kotlinx.mcp.CallToolResult {
+ *     content: org.jetbrains.kotlinx.mcp.PromptMessageContent {
  *         type: String,
  *     }
  *     isError: Boolean?,
  *     _meta: JsonObject,
  * }
  *
- * CompatibilityCallToolResult {
- *     content: PromptMessageContent {
+ * org.jetbrains.kotlinx.mcp.CompatibilityCallToolResult {
+ *     content: org.jetbrains.kotlinx.mcp.PromptMessageContent {
  *         type: String,
  *     },
  *     isError: Boolean?,
@@ -245,7 +247,7 @@ internal object RequestPolymorphicSerializer :
  *     toolResult: JsonObject,
  * }
  *
- * CompleteResult {
+ * org.jetbrains.kotlinx.mcp.CompleteResult {
  *     completion: Completion {
  *         values: Array<String>,
  *         total: Int?,
@@ -254,45 +256,45 @@ internal object RequestPolymorphicSerializer :
  *     _meta: JsonObject,
  * }
  *
- * GetPromptResult {
+ * org.jetbrains.kotlinx.mcp.GetPromptResult {
  *     description: String?,
- *     messages: Array<PromptMessage>,
+ *     messages: Array<org.jetbrains.kotlinx.mcp.PromptMessage>,
  *     _meta: JsonObject,
  * }
  *
- * InitializeResult {
+ * org.jetbrains.kotlinx.mcp.InitializeResult {
  *     protocolVersion: String,
- *     capabilities: ServerCapabilities,
- *     serverInfo: Implementation,
+ *     capabilities: org.jetbrains.kotlinx.mcp.ServerCapabilities,
+ *     serverInfo: org.jetbrains.kotlinx.mcp.Implementation,
  *     _meta: JsonObject,
  * }
  *
- * ListPromptsResult {
- *     prompts: Array<Prompt>,
- *     nextCursor: Cursor?,
+ * org.jetbrains.kotlinx.mcp.ListPromptsResult {
+ *     prompts: Array<org.jetbrains.kotlinx.mcp.Prompt>,
+ *     nextCursor: org.jetbrains.kotlinx.mcp.Cursor?,
  *     _meta: JsonObject,
  * }
  *
- * ListResourceTemplatesResult {
- *     resourceTemplates: Array<ResourceTemplate>,
- *     nextCursor: Cursor?,
+ * org.jetbrains.kotlinx.mcp.ListResourceTemplatesResult {
+ *     resourceTemplates: Array<org.jetbrains.kotlinx.mcp.ResourceTemplate>,
+ *     nextCursor: org.jetbrains.kotlinx.mcp.Cursor?,
  *     _meta: JsonObject,
  * }
  *
- * ListResourcesResult {
- *     resources: Array<Resource>,
- *     nextCursor: Cursor?,
+ * org.jetbrains.kotlinx.mcp.ListResourcesResult {
+ *     resources: Array<org.jetbrains.kotlinx.mcp.Resource>,
+ *     nextCursor: org.jetbrains.kotlinx.mcp.Cursor?,
  *     _meta: JsonObject,
  * }
  *
- * ListToolsResult {
- *     tools: Array<Tool>,
- *     nextCursor: Cursor?,
+ * org.jetbrains.kotlinx.mcp.ListToolsResult {
+ *     tools: Array<org.jetbrains.kotlinx.mcp.Tool>,
+ *     nextCursor: org.jetbrains.kotlinx.mcp.Cursor?,
  *     _meta: JsonObject,
  * }
  *
- * ReadResourceResult {
- *     contents: Array<ResourceContents>,
+ * org.jetbrains.kotlinx.mcp.ReadResourceResult {
+ *     contents: Array<org.jetbrains.kotlinx.mcp.ResourceContents>,
  *     _meta: JsonObject,
  * }
  * ```
@@ -320,16 +322,16 @@ private fun selectServerResultDeserializer(element: JsonElement): Deserializatio
  * We deserialize by unique keys
  *
  * ```
- * CreateMessageResult {
+ * org.jetbrains.kotlinx.mcp.CreateMessageResult {
  *     model: String,
- *     stopReason: StopReason?,
- *     role: Role,
- *     content: PromptMessageContentTextOrImage,
+ *     stopReason: org.jetbrains.kotlinx.mcp.StopReason?,
+ *     role: org.jetbrains.kotlinx.mcp.Role,
+ *     content: org.jetbrains.kotlinx.mcp.PromptMessageContentTextOrImage,
  *     _meta: JsonObject,
  * }
  *
- * ListRootsResult {
- *     roots: Array<Root>,
+ * org.jetbrains.kotlinx.mcp.ListRootsResult {
+ *     roots: Array<org.jetbrains.kotlinx.mcp.Root>,
  *     _meta: JsonObject,
  * }
  *```

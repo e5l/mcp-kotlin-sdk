@@ -1,7 +1,7 @@
-package server
+package org.jetbrains.kotlinx.mcp.server
 
-import Implementation
-import ServerCapabilities
+import org.jetbrains.kotlinx.mcp.Implementation
+import org.jetbrains.kotlinx.mcp.ServerCapabilities
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.*
 import io.ktor.server.response.respond

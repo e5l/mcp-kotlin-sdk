@@ -1,21 +1,20 @@
-package shared
+package org.jetbrains.kotlinx.mcp.shared
 
-import CancelledNotification
-import EmptyRequestResult
-import ErrorCode
-import JSONRPCError
-import JSONRPCNotification
-import JSONRPCRequest
-import JSONRPCResponse
-import McpError
-import Method
-import Notification
-import PingRequest
-import Progress
-import ProgressNotification
-import Request
-import RequestResult
-import fromJSON
+import org.jetbrains.kotlinx.mcp.CancelledNotification
+import org.jetbrains.kotlinx.mcp.EmptyRequestResult
+import org.jetbrains.kotlinx.mcp.ErrorCode
+import org.jetbrains.kotlinx.mcp.JSONRPCError
+import org.jetbrains.kotlinx.mcp.JSONRPCNotification
+import org.jetbrains.kotlinx.mcp.JSONRPCRequest
+import org.jetbrains.kotlinx.mcp.JSONRPCResponse
+import org.jetbrains.kotlinx.mcp.McpError
+import org.jetbrains.kotlinx.mcp.Method
+import org.jetbrains.kotlinx.mcp.Notification
+import org.jetbrains.kotlinx.mcp.PingRequest
+import org.jetbrains.kotlinx.mcp.Progress
+import org.jetbrains.kotlinx.mcp.ProgressNotification
+import org.jetbrains.kotlinx.mcp.Request
+import org.jetbrains.kotlinx.mcp.RequestResult
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
@@ -25,7 +24,9 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 import kotlinx.serialization.serializer
-import toJSON
+import org.jetbrains.kotlinx.mcp.fromJSON
+import org.jetbrains.kotlinx.mcp.toJSON
+import kotlin.collections.get
 import kotlin.reflect.typeOf
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -85,7 +86,7 @@ data class RequestOptions(
     val onProgress: ProgressCallback? = null,
 
     /**
-     * A timeout for this request. If exceeded, an McpError with code `RequestTimeout`
+     * A timeout for this request. If exceeded, an org.jetbrains.kotlinx.mcp.McpError with code `RequestTimeout`
      * will be raised from request().
      *
      * If not specified, `DEFAULT_REQUEST_TIMEOUT` will be used as the timeout.
@@ -398,7 +399,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
             cancel(
                 McpError(
                     ErrorCode.Defined.RequestTimeout.code,
-                    "Request timed out",
+                    "org.jetbrains.kotlinx.mcp.Request timed out",
                     JsonObject(mutableMapOf("timeout" to JsonPrimitive(timeout.inWholeMilliseconds)))
                 ),
             )

@@ -1,6 +1,7 @@
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
-import shared.Transport
+import org.jetbrains.kotlinx.mcp.JSONRPCMessage
+import org.jetbrains.kotlinx.mcp.shared.Transport
 
 /**
  * In-memory transport for creating clients and servers that talk to each other within the same process.

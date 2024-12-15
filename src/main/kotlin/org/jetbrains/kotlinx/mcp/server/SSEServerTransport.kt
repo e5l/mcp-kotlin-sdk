@@ -1,16 +1,15 @@
-package server
+package org.jetbrains.kotlinx.mcp.server
 
-import JSONRPCMessage
+import org.jetbrains.kotlinx.mcp.JSONRPCMessage
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.sse.*
-import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.job
 import kotlinx.serialization.encodeToString
-import shared.McpJson
-import shared.Transport
+import org.jetbrains.kotlinx.mcp.shared.McpJson
+import org.jetbrains.kotlinx.mcp.shared.Transport
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid

@@ -3,9 +3,10 @@ package client
 import io.ktor.server.testing.*
 import io.ktor.server.websocket.*
 import kotlinx.coroutines.CompletableDeferred
+import org.jetbrains.kotlinx.mcp.client.mcpWebSocketTransport
 import org.junit.jupiter.api.Test
-import server.mcpWebSocket
-import server.mcpWebSocketTransport
+import org.jetbrains.kotlinx.mcp.server.mcpWebSocket
+import org.jetbrains.kotlinx.mcp.server.mcpWebSocketTransport
 
 class WebSocketTransportTest : BaseTransportTest() {
     @Test

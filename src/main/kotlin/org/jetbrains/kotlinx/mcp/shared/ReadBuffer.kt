@@ -1,6 +1,6 @@
-package shared
+package org.jetbrains.kotlinx.mcp.shared
 
-import JSONRPCMessage
+import org.jetbrains.kotlinx.mcp.JSONRPCMessage
 import io.ktor.utils.io.core.*
 import kotlinx.io.Buffer
 import kotlinx.io.indexOf

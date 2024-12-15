@@ -1,13 +1,13 @@
-package client
+package org.jetbrains.kotlinx.mcp.client
 
-import JSONRPCMessage
+import org.jetbrains.kotlinx.mcp.JSONRPCMessage
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.io.IOException
-import shared.ReadBuffer
-import shared.Transport
-import shared.serializeMessage
+import org.jetbrains.kotlinx.mcp.shared.ReadBuffer
+import org.jetbrains.kotlinx.mcp.shared.Transport
+import org.jetbrains.kotlinx.mcp.shared.serializeMessage
 import java.io.InputStream
 import java.io.OutputStream
 import kotlin.coroutines.CoroutineContext

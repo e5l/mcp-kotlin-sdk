@@ -1,6 +1,6 @@
-package shared
+package org.jetbrains.kotlinx.mcp.shared
 
-import JSONRPCMessage
+import org.jetbrains.kotlinx.mcp.JSONRPCMessage
 
 /**
  * Describes the minimal contract for a MCP transport that a client or server can communicate over.

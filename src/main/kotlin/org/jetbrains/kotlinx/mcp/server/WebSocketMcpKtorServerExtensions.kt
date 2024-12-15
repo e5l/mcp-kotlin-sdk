@@ -1,10 +1,10 @@
-package server
+package org.jetbrains.kotlinx.mcp.server
 
-import Implementation
-import ServerCapabilities
+import org.jetbrains.kotlinx.mcp.Implementation
+import org.jetbrains.kotlinx.mcp.ServerCapabilities
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
-import shared.IMPLEMENTATION_NAME
+import org.jetbrains.kotlinx.mcp.shared.IMPLEMENTATION_NAME
 import shared.LIB_VERSION
 
 fun Route.mcpWebSocket(
