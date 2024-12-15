@@ -144,8 +144,6 @@ private fun fillSchema(schema: Tool.Input): JsonObject {
 private fun runServer() {
     val def = CompletableDeferred<Unit>()
 
-    val resources = ServerCapabilities.Resources(subscribe = true, listChanged = true)
-
     val server = Server(
         Implementation(
             name = "mcp-kotlin test server",
@@ -153,15 +151,45 @@ private fun runServer() {
         ),
         ServerOptions(
             capabilities = ServerCapabilities(
-                prompts = ServerCapabilities.Prompts(listChanged = null),
-                resources = resources,
-                tools = ServerCapabilities.Tools(listChanged = null),
+                prompts = ServerCapabilities.Prompts(listChanged = true),
+                resources = ServerCapabilities.Resources(subscribe = true, listChanged = true),
+                tools = ServerCapabilities.Tools(listChanged = true),
             )
         ),
         onCloseCallback = {
             def.complete(Unit)
         }
     )
+
+    server.setRequestHandler<ListPromptsRequest>(Method.Defined.PromptsList) { request, extra ->
+        val prompt = Prompt(
+            name = "Kotlin Developer",
+            description = "Develop small kotlin applicatoins",
+            arguments = listOf(
+                PromptArgument(
+                    name = "Project Name",
+                    description = "Project name for the new project",
+                    required = true
+                )
+            )
+        )
+        ListPromptsResult(
+            prompts = listOf(prompt)
+        )
+    }
+
+    server.setRequestHandler<GetPromptRequest>(Method.Defined.PromptsGet) { request, extra ->
+
+        GetPromptResult(
+            "Description for ${request.name}",
+            messages = listOf(
+                PromptMessage(
+                    role = Role.user,
+                    content = TextContent("Develop a kotlin project named <name>${request.arguments?.get("Project Name")}</name>")
+                )
+            )
+        )
+    }
 
     server.setRequestHandler<ListToolsRequest>(Method.Defined.ToolsList) { request, _ ->
         val tools = arrayOf(
@@ -206,9 +234,11 @@ private fun runServer() {
 
         // Handles all resources at once
 
-        ReadResourceResult(contents = listOf(
-            TextResourceContents("Placeholder content for $uri", uri, "text/html")
-        ))
+        ReadResourceResult(
+            contents = listOf(
+                TextResourceContents("Placeholder content for $uri", uri, "text/html")
+            )
+        )
     }
 
     server.setRequestHandler<ListResourceTemplatesRequest>(Method.Defined.ResourcesTemplatesList) { request, extra ->
