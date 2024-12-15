@@ -204,9 +204,21 @@ private fun runServer() {
     server.setRequestHandler<ReadResourceRequest>(Method.Defined.ResourcesRead) { request, extra ->
         val uri: String = request.uri
 
+        // Handles all resources at once
+
         ReadResourceResult(contents = listOf(
             TextResourceContents("Placeholder content for $uri", uri, "text/html")
         ))
+    }
+
+    server.setRequestHandler<ListResourceTemplatesRequest>(Method.Defined.ResourcesTemplatesList) { request, extra ->
+        val element = ResourceTemplate(
+            uriTemplate = "https://google.com/q={query}",
+            name = "Google Search template",
+            description = "Google search template",
+            mimeType = "text/html"
+        )
+        ListResourceTemplatesResult(listOf(element))
     }
 
     val transport = StdioServerTransport()
