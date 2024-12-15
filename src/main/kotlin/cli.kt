@@ -14,6 +14,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
+import server.MCP
 import server.SSEServerTransport
 import server.Server
 import server.ServerOptions
@@ -192,7 +193,7 @@ private fun runServer() {
     }
 
     server.setRequestHandler<ListToolsRequest>(Method.Defined.ToolsList) { request, _ ->
-        val tools = arrayOf(
+        val tools = listOf(
             Tool(
                 name = "Test Tool",
                 description = "A test tool",
@@ -206,7 +207,7 @@ private fun runServer() {
     }
 
     server.setRequestHandler<CallToolRequest>(Method.Defined.ToolsCall) { request, _ ->
-        val result: Array<PromptMessageContent> = arrayOf(
+        val result: List<PromptMessageContent> = listOf(
             TextContent(
                 text = "Hello, world!"
             )
@@ -308,4 +309,25 @@ fun runSseServer(port: Int): Unit = runBlocking {
             }
         }
     }.start(wait = true)
+}
+
+fun runSseServerKtor(port: Int): Unit = runBlocking {
+    embeddedServer(CIO, host = "0.0.0.0", port = port) {
+        MCP {
+            val options = ServerOptions(
+                capabilities = ServerCapabilities(
+                    prompts = ServerCapabilities.Prompts(listChanged = null),
+                    resources = ServerCapabilities.Resources(subscribe = null, listChanged = null),
+                )
+            )
+
+            Server(
+                Implementation(
+                    name = "mcp-kotlin test server",
+                    version = "0.1.0"
+                ),
+                options
+            )
+        }
+    }
 }
