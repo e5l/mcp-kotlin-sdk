@@ -163,8 +163,7 @@ private fun runServer() {
         }
     )
 
-    // Define a prompt and register it
-    val prompt = Prompt(
+    server.addPrompt(
         name = "Kotlin Developer",
         description = "Develop small kotlin applications",
         arguments = listOf(
@@ -174,9 +173,7 @@ private fun runServer() {
                 required = true
             )
         )
-    )
-
-    server.addPrompt(prompt) { request ->
+    ) { request ->
         GetPromptResult(
             "Description for ${request.name}",
             messages = listOf(
