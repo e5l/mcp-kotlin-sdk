@@ -1,56 +1,21 @@
 package org.jetbrains.kotlinx.mcp.server
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import org.jetbrains.kotlinx.mcp.CallToolRequest
-import org.jetbrains.kotlinx.mcp.CallToolResult
-import org.jetbrains.kotlinx.mcp.ClientCapabilities
-import org.jetbrains.kotlinx.mcp.CreateMessageRequest
-import org.jetbrains.kotlinx.mcp.CreateMessageResult
-import org.jetbrains.kotlinx.mcp.EmptyJsonObject
-import org.jetbrains.kotlinx.mcp.EmptyRequestResult
-import org.jetbrains.kotlinx.mcp.GetPromptRequest
-import org.jetbrains.kotlinx.mcp.GetPromptResult
-import org.jetbrains.kotlinx.mcp.Implementation
-import org.jetbrains.kotlinx.mcp.InitializeRequest
-import org.jetbrains.kotlinx.mcp.InitializeResult
-import org.jetbrains.kotlinx.mcp.InitializedNotification
-import org.jetbrains.kotlinx.mcp.LATEST_PROTOCOL_VERSION
-import org.jetbrains.kotlinx.mcp.ListPromptsRequest
-import org.jetbrains.kotlinx.mcp.ListPromptsResult
-import org.jetbrains.kotlinx.mcp.ListResourceTemplatesRequest
-import org.jetbrains.kotlinx.mcp.ListResourceTemplatesResult
-import org.jetbrains.kotlinx.mcp.ListResourcesRequest
-import org.jetbrains.kotlinx.mcp.ListResourcesResult
-import org.jetbrains.kotlinx.mcp.ListRootsRequest
-import org.jetbrains.kotlinx.mcp.ListRootsResult
-import org.jetbrains.kotlinx.mcp.ListToolsRequest
-import org.jetbrains.kotlinx.mcp.ListToolsResult
-import org.jetbrains.kotlinx.mcp.LoggingMessageNotification
-import org.jetbrains.kotlinx.mcp.Method
-import org.jetbrains.kotlinx.mcp.PingRequest
-import org.jetbrains.kotlinx.mcp.Prompt
-import org.jetbrains.kotlinx.mcp.PromptListChangedNotification
-import org.jetbrains.kotlinx.mcp.ReadResourceRequest
-import org.jetbrains.kotlinx.mcp.ReadResourceResult
-import org.jetbrains.kotlinx.mcp.Resource
-import org.jetbrains.kotlinx.mcp.ResourceListChangedNotification
-import org.jetbrains.kotlinx.mcp.ResourceUpdatedNotification
-import org.jetbrains.kotlinx.mcp.SUPPORTED_PROTOCOL_VERSIONS
-import org.jetbrains.kotlinx.mcp.ServerCapabilities
-import org.jetbrains.kotlinx.mcp.ServerNotification
-import org.jetbrains.kotlinx.mcp.ServerRequest
-import org.jetbrains.kotlinx.mcp.ServerResult
-import org.jetbrains.kotlinx.mcp.Tool
-import org.jetbrains.kotlinx.mcp.ToolListChangedNotification
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.serialization.json.JsonObject
-import org.jetbrains.kotlinx.mcp.PromptArgument
+import org.jetbrains.kotlinx.mcp.*
 import org.jetbrains.kotlinx.mcp.shared.Protocol
 import org.jetbrains.kotlinx.mcp.shared.ProtocolOptions
 import org.jetbrains.kotlinx.mcp.shared.RequestOptions
 
 private val logger = KotlinLogging.logger {}
 
+/**
+ * Configuration options for the MCP server.
+ *
+ * @property capabilities The capabilities this server supports.
+ * @property enforceStrictCapabilities Whether to strictly enforce capabilities when interacting with clients.
+ */
 class ServerOptions(
     val capabilities: ServerCapabilities,
     enforceStrictCapabilities: Boolean = true,
@@ -60,23 +25,17 @@ class ServerOptions(
  * An MCP server on top of a pluggable transport.
  *
  * This server automatically responds to the initialization flow as initiated by the client.
+ * You can register tools, prompts, and resources using [addTool], [addPrompt], and [addResource].
+ * The server will then automatically handle listing and retrieval requests from the client.
  *
- * To use with custom types, extend the base org.jetbrains.kotlinx.mcp.Request/org.jetbrains.kotlinx.mcp.Notification/Result types and pass them as type parameters:
- *
- * ```kotlin
- * // Custom data classes
- *
- * // Create typed server
- * class CustomServer(
- *   serverInfo: org.jetbrains.kotlinx.mcp.Implementation,
- *   options: ServerOptions
- * ) : Server<org.jetbrains.kotlinx.mcp.CustomRequest, CustomNotification, CustomResult>(serverInfo, options)
- * ```
+ * @param serverInfo Information about this server implementation (name, version).
+ * @param options Configuration options for the server.
+ * @param onCloseCallback A callback invoked when the server connection closes.
  */
 open class Server(
     private val serverInfo: Implementation,
     options: ServerOptions,
-    var onCloseCallback : (() -> Unit)? = null
+    var onCloseCallback: (() -> Unit)? = null
 ) : Protocol<ServerRequest, ServerNotification, ServerResult>(options) {
 
     private var clientCapabilities: ClientCapabilities? = null
@@ -88,12 +47,14 @@ open class Server(
     private val resources = mutableMapOf<String, RegisteredResource>()
 
     /**
-     * Callback invoked when initialization has fully completed (i.e., the client has sent an `initialized` notification).
+     * A callback invoked when the server has completed the initialization sequence.
+     * After initialization, the server is ready to handle requests.
      */
     var onInitialized: (() -> Unit)? = null
 
     init {
         logger.debug { "Initializing MCP server with capabilities: $capabilities" }
+
         // Core protocol handlers
         setRequestHandler<InitializeRequest>(Method.Defined.Initialize) { request, _ ->
             handleInitialize(request)
@@ -131,13 +92,23 @@ open class Server(
         }
     }
 
+    /**
+     * Called when the server connection is closing.
+     * Invokes [onCloseCallback] if set.
+     */
     override fun onclose() {
         logger.info { "Server connection closing" }
         onCloseCallback?.invoke()
     }
 
     /**
-     * Register a single tool.
+     * Registers a single tool. This tool can then be called by the client.
+     *
+     * @param name The name of the tool.
+     * @param description A human-readable description of what the tool does.
+     * @param inputSchema The expected input schema for the tool.
+     * @param handler A suspend function that handles executing the tool when called by the client.
+     * @throws IllegalStateException If the server does not support tools.
      */
     fun addTool(
         name: String,
@@ -154,7 +125,10 @@ open class Server(
     }
 
     /**
-     * Register multiple tools at once.
+     * Registers multiple tools at once.
+     *
+     * @param toolsToAdd A list of [RegisteredTool] objects representing the tools to register.
+     * @throws IllegalStateException If the server does not support tools.
      */
     fun addTools(toolsToAdd: List<RegisteredTool>) {
         if (capabilities.tools == null) {
@@ -169,7 +143,11 @@ open class Server(
     }
 
     /**
-     * Register a prompt.
+     * Registers a single prompt. The prompt can then be retrieved by the client.
+     *
+     * @param prompt A [Prompt] object describing the prompt.
+     * @param promptProvider A suspend function that returns the prompt content when requested by the client.
+     * @throws IllegalStateException If the server does not support prompts.
      */
     fun addPrompt(prompt: Prompt, promptProvider: suspend (GetPromptRequest) -> GetPromptResult) {
         if (capabilities.prompts == null) {
@@ -181,7 +159,13 @@ open class Server(
     }
 
     /**
-     * Register a prompt using individual parameters.
+     * Registers a single prompt by constructing a [Prompt] from given parameters.
+     *
+     * @param name The name of the prompt.
+     * @param description An optional human-readable description of the prompt.
+     * @param arguments An optional list of [PromptArgument] that the prompt accepts.
+     * @param promptProvider A suspend function that returns the prompt content when requested.
+     * @throws IllegalStateException If the server does not support prompts.
      */
     fun addPrompt(
         name: String,
@@ -194,7 +178,10 @@ open class Server(
     }
 
     /**
-     * Register multiple prompts.
+     * Registers multiple prompts at once.
+     *
+     * @param promptsToAdd A list of [RegisteredPrompt] objects representing the prompts to register.
+     * @throws IllegalStateException If the server does not support prompts.
      */
     fun addPrompts(promptsToAdd: List<RegisteredPrompt>) {
         if (capabilities.prompts == null) {
@@ -209,7 +196,14 @@ open class Server(
     }
 
     /**
-     * Register a resource.
+     * Registers a single resource. The resource content can then be read by the client.
+     *
+     * @param uri The URI of the resource.
+     * @param name A human-readable name for the resource.
+     * @param description A description of the resource's content.
+     * @param mimeType The MIME type of the resource content.
+     * @param readHandler A suspend function that returns the resource content when read by the client.
+     * @throws IllegalStateException If the server does not support resources.
      */
     fun addResource(
         uri: String,
@@ -227,7 +221,10 @@ open class Server(
     }
 
     /**
-     * Register multiple resources.
+     * Registers multiple resources at once.
+     *
+     * @param resourcesToAdd A list of [RegisteredResource] objects representing the resources to register.
+     * @throws IllegalStateException If the server does not support resources.
      */
     fun addResources(resourcesToAdd: List<RegisteredResource>) {
         if (capabilities.resources == null) {
@@ -239,6 +236,110 @@ open class Server(
             logger.debug { "Registering resource: ${r.resource.name} (${r.resource.uri})" }
             resources[r.resource.uri] = r
         }
+    }
+
+    /**
+     * Retrieves the client's reported capabilities after initialization.
+     *
+     * @return The client's capabilities, or `null` if initialization is not yet complete.
+     */
+    fun getClientCapabilities(): ClientCapabilities? {
+        return clientCapabilities
+    }
+
+    /**
+     * Retrieves the client's version information after initialization.
+     *
+     * @return Information about the client's implementation, or `null` if initialization is not yet complete.
+     */
+    fun getClientVersion(): Implementation? {
+        return clientVersion
+    }
+
+    /**
+     * Sends a ping request to the client to check connectivity.
+     *
+     * @return The result of the ping request.
+     * @throws IllegalStateException If for some reason the method is not supported or the connection is closed.
+     */
+    suspend fun ping(): EmptyRequestResult {
+        return request<EmptyRequestResult>(PingRequest())
+    }
+
+    /**
+     * Creates a message using the server's sampling capability.
+     *
+     * @param params The parameters for creating a message.
+     * @param options Optional request options.
+     * @return The created message result.
+     * @throws IllegalStateException If the server does not support sampling or if the request fails.
+     */
+    suspend fun createMessage(
+        params: CreateMessageRequest,
+        options: RequestOptions? = null
+    ): CreateMessageResult {
+        logger.debug { "Creating message with params: $params" }
+        return request<CreateMessageResult>(params, options)
+    }
+
+    /**
+     * Lists the available "roots" from the client's perspective (if supported).
+     *
+     * @param params JSON parameters for the request, usually empty.
+     * @param options Optional request options.
+     * @return The list of roots.
+     * @throws IllegalStateException If the server or client does not support roots.
+     */
+    suspend fun listRoots(
+        params: JsonObject = EmptyJsonObject,
+        options: RequestOptions? = null
+    ): ListRootsResult {
+        logger.debug { "Listing roots with params: $params" }
+        return request<ListRootsResult>(ListRootsRequest(params), options)
+    }
+
+    /**
+     * Sends a logging message notification to the client.
+     *
+     * @param params The logging message notification parameters.
+     */
+    suspend fun sendLoggingMessage(params: LoggingMessageNotification) {
+        logger.trace { "Sending logging message: ${params.data}" }
+        notification(params)
+    }
+
+    /**
+     * Sends a resource-updated notification to the client, indicating that a specific resource has changed.
+     *
+     * @param params Details of the updated resource.
+     */
+    suspend fun sendResourceUpdated(params: ResourceUpdatedNotification) {
+        logger.debug { "Sending resource updated notification for: ${params.uri}" }
+        notification(params)
+    }
+
+    /**
+     * Sends a notification to the client indicating that the list of resources has changed.
+     */
+    suspend fun sendResourceListChanged() {
+        logger.debug { "Sending resource list changed notification" }
+        notification(ResourceListChangedNotification())
+    }
+
+    /**
+     * Sends a notification to the client indicating that the list of tools has changed.
+     */
+    suspend fun sendToolListChanged() {
+        logger.debug { "Sending tool list changed notification" }
+        notification(ToolListChangedNotification())
+    }
+
+    /**
+     * Sends a notification to the client indicating that the list of prompts has changed.
+     */
+    suspend fun sendPromptListChanged() {
+        logger.debug { "Sending prompt list changed notification" }
+        notification(PromptListChangedNotification())
     }
 
     // --- Internal Handlers ---
@@ -315,7 +416,12 @@ open class Server(
     }
 
     /**
-     * Capability assertions (from the first snippet)
+     * Asserts that the client supports the capability required for the given [method].
+     *
+     * This method is automatically called by the [Protocol] framework before handling requests.
+     * Throws [IllegalStateException] if the capability is not supported.
+     *
+     * @param method The method for which we are asserting capability.
      */
     override fun assertCapabilityForMethod(method: Method) {
         logger.trace { "Asserting capability for method: ${method.value}" }
@@ -339,6 +445,13 @@ open class Server(
         }
     }
 
+    /**
+     * Asserts that the server can handle the specified notification method.
+     *
+     * Throws [IllegalStateException] if the server does not have the capabilities required to handle this notification.
+     *
+     * @param method The notification method.
+     */
     override fun assertNotificationCapability(method: Method) {
         logger.trace { "Asserting notification capability for method: ${method.value}" }
         when (method.value) {
@@ -375,6 +488,13 @@ open class Server(
         }
     }
 
+    /**
+     * Asserts that the server can handle the specified request method.
+     *
+     * Throws [IllegalStateException] if the server does not have the capabilities required to handle this request.
+     *
+     * @param method The request method.
+     */
     override fun assertRequestHandlerCapability(method: Method) {
         logger.trace { "Asserting request handler capability for method: ${method.value}" }
         when (method.value) {
@@ -418,80 +538,36 @@ open class Server(
             }
         }
     }
-
-    /**
-     * After initialization has completed, this will be populated with the client's reported capabilities.
-     */
-    fun getClientCapabilities(): ClientCapabilities? {
-        return clientCapabilities
-    }
-
-    /**
-     * After initialization has completed, this will be populated with information about the client's name and version.
-     */
-    fun getClientVersion(): Implementation? {
-        return clientVersion
-    }
-
-    suspend fun ping(): EmptyRequestResult {
-        return request<EmptyRequestResult>(PingRequest())
-    }
-
-    suspend fun createMessage(
-        params: CreateMessageRequest,
-        options: RequestOptions? = null
-    ): CreateMessageResult {
-        logger.debug { "Creating message with params: $params" }
-        return request<CreateMessageResult>(params, options)
-    }
-
-    suspend fun listRoots(
-        params: JsonObject = EmptyJsonObject,
-        options: RequestOptions? = null
-    ): ListRootsResult {
-        logger.debug { "Listing roots with params: $params" }
-        return request<ListRootsResult>(ListRootsRequest(params), options)
-    }
-
-    suspend fun sendLoggingMessage(params: LoggingMessageNotification) {
-        logger.trace { "Sending logging message: ${params.data}" }
-        notification(params)
-    }
-
-    suspend fun sendResourceUpdated(params: ResourceUpdatedNotification) {
-        logger.debug { "Sending resource updated notification for: ${params.uri}" }
-        notification(params)
-    }
-
-    suspend fun sendResourceListChanged() {
-        logger.debug { "Sending resource list changed notification" }
-        notification(ResourceListChangedNotification())
-    }
-
-    suspend fun sendToolListChanged() {
-        logger.debug { "Sending tool list changed notification" }
-        notification(ToolListChangedNotification())
-    }
-
-    suspend fun sendPromptListChanged() {
-        logger.debug { "Sending prompt list changed notification" }
-        notification(PromptListChangedNotification())
-    }
 }
 
 /**
- * Wrapper classes for registered entities.
+ * A wrapper class representing a registered tool on the server.
+ *
+ * @property tool The tool definition.
+ * @property handler A suspend function to handle the tool call requests.
  */
 data class RegisteredTool(
     val tool: Tool,
     val handler: suspend (CallToolRequest) -> CallToolResult
 )
 
+/**
+ * A wrapper class representing a registered prompt on the server.
+ *
+ * @property prompt The prompt definition.
+ * @property messageProvider A suspend function that returns the prompt content when requested by the client.
+ */
 data class RegisteredPrompt(
     val prompt: Prompt,
     val messageProvider: suspend (GetPromptRequest) -> GetPromptResult
 )
 
+/**
+ * A wrapper class representing a registered resource on the server.
+ *
+ * @property resource The resource definition.
+ * @property readHandler A suspend function to handle read requests for this resource.
+ */
 data class RegisteredResource(
     val resource: Resource,
     val readHandler: suspend (ReadResourceRequest) -> ReadResourceResult
