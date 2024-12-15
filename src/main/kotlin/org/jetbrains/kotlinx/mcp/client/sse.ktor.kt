@@ -7,12 +7,28 @@ import org.jetbrains.kotlinx.mcp.shared.IMPLEMENTATION_NAME
 import shared.LIB_VERSION
 import kotlin.time.Duration
 
+/**
+ * Returns a new SSE transport for the Model Context Protocol using the provided HttpClient.
+ *
+ * @param urlString Optional URL of the MCP server.
+ * @param reconnectionTime Optional duration to wait before attempting to reconnect.
+ * @param  requestBuilder Optional lambda to configure the HTTP request.
+ * @return A [SSEClientTransport] configured for MCP communication.
+ */
 fun HttpClient.mcpSseTransport(
     urlString: String? = null,
     reconnectionTime: Duration? = null,
     requestBuilder: HttpRequestBuilder.() -> Unit = {},
-) = SSEClientTransport(this, urlString, reconnectionTime, requestBuilder)
+): SSEClientTransport = SSEClientTransport(this, urlString, reconnectionTime, requestBuilder)
 
+/**
+ * Creates and connects an MCP client over SSE using the provided HttpClient.
+ *
+ * @param urlString Optional URL of the MCP server.
+ * @param reconnectionTime Optional duration to wait before attempting to reconnect.
+ * @param requestBuilder Optional lambda to configure the HTTP request.
+ * @return A connected [Client] ready for MCP communication.
+ */
 suspend fun HttpClient.mcpSse(
     urlString: String? = null,
     reconnectionTime: Duration? = null,

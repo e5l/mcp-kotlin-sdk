@@ -36,9 +36,9 @@ class SSEClientTransport(
     override var onError: ((Throwable) -> Unit)? = null
     override var onMessage: (suspend ((JSONRPCMessage) -> Unit))? = null
 
-    var job: Job? = null
+    private var job: Job? = null
 
-    val baseUrl by lazy {
+    private val baseUrl by lazy {
         session.call.request.url.toString().removeSuffix("/")
     }
 
