@@ -16,6 +16,7 @@ import ProgressNotification
 import Request
 import RequestResult
 import fromJSON
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.TimeoutCancellationException
@@ -23,12 +24,13 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
-import kotlinx.serialization.*
-import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.serializer
 import toJSON
 import kotlin.reflect.typeOf
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+
+private val LOGGER = KotlinLogging.logger { }
 
 const val IMPLEMENTATION_NAME = "mcp-ktor"
 
@@ -37,20 +39,8 @@ const val IMPLEMENTATION_NAME = "mcp-ktor"
  */
 typealias ProgressCallback = (Progress) -> Unit
 
-class AbortSignal {
-
-    fun throwIfAborted() {
-        TODO("Not yet implemented")
-    }
-
-    fun addEventListener(event: String, block: suspend () -> Unit) {}
-
-    var reason: Throwable? = null
-    var aborted: Boolean = false
-}
-
 @OptIn(ExperimentalSerializationApi::class)
-public val McpJson: Json by lazy {
+val McpJson: Json by lazy {
     Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
@@ -76,8 +66,6 @@ open class ProtocolOptions(
      */
     var enforceStrictCapabilities: Boolean = false,
 
-    var signal: AbortSignal? = null,
-
     var timeout: Duration = DEFAULT_REQUEST_TIMEOUT
 )
 
@@ -95,12 +83,6 @@ data class RequestOptions(
      * When progress notifications are received, this callback will be invoked.
      */
     val onProgress: ProgressCallback? = null,
-
-    /**
-     * Can be used to cancel an in-flight request.
-     * This will cause an AbortError to be raised from request().
-     */
-    val signal: AbortSignal = AbortSignal(),
 
     /**
      * A timeout for this request. If exceeded, an McpError with code `RequestTimeout`
@@ -360,8 +342,6 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
             assertCapabilityForMethod(request.method)
         }
 
-        options?.signal?.throwIfAborted()
-
         val message = request.toJSON()
         val messageId = message.id
 
@@ -375,10 +355,6 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
         }
 
         responseHandlers.set(messageId, { response, error ->
-            if (options?.signal?.aborted == true) {
-                return@set
-            }
-
             if (error != null) {
                 result.completeExceptionally(error)
                 return@set

@@ -229,7 +229,7 @@ class ClientTest {
         }
 
         server.setRequestHandler<ListToolsRequest>(Method.Defined.ToolsList) { request, _ ->
-            ListToolsResult(tools = emptyArray(), nextCursor = null)
+            ListToolsResult(tools = emptyList(), nextCursor = null)
         }
 
         val (clientTransport, serverTransport) = InMemoryTransport.createLinkedPair()
