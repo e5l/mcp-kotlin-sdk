@@ -1,42 +1,11 @@
 package org.jetbrains.kotlinx.mcp.client
 
-import org.jetbrains.kotlinx.mcp.CallToolRequest
-import org.jetbrains.kotlinx.mcp.CallToolResult
-import org.jetbrains.kotlinx.mcp.CallToolResultBase
-import org.jetbrains.kotlinx.mcp.ClientCapabilities
-import org.jetbrains.kotlinx.mcp.ClientNotification
-import org.jetbrains.kotlinx.mcp.ClientRequest
-import org.jetbrains.kotlinx.mcp.ClientResult
-import org.jetbrains.kotlinx.mcp.CompatibilityCallToolResult
-import org.jetbrains.kotlinx.mcp.CompleteRequest
-import org.jetbrains.kotlinx.mcp.CompleteResult
-import org.jetbrains.kotlinx.mcp.EmptyRequestResult
-import org.jetbrains.kotlinx.mcp.GetPromptRequest
-import org.jetbrains.kotlinx.mcp.GetPromptResult
-import org.jetbrains.kotlinx.mcp.Implementation
-import org.jetbrains.kotlinx.mcp.InitializeRequest
-import org.jetbrains.kotlinx.mcp.InitializeResult
-import org.jetbrains.kotlinx.mcp.InitializedNotification
-import org.jetbrains.kotlinx.mcp.LATEST_PROTOCOL_VERSION
-import org.jetbrains.kotlinx.mcp.ListPromptsRequest
-import org.jetbrains.kotlinx.mcp.ListPromptsResult
-import org.jetbrains.kotlinx.mcp.ListResourceTemplatesRequest
-import org.jetbrains.kotlinx.mcp.ListResourceTemplatesResult
-import org.jetbrains.kotlinx.mcp.ListResourcesRequest
-import org.jetbrains.kotlinx.mcp.ListResourcesResult
-import org.jetbrains.kotlinx.mcp.ListToolsRequest
-import org.jetbrains.kotlinx.mcp.ListToolsResult
-import org.jetbrains.kotlinx.mcp.LoggingLevel
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import org.jetbrains.kotlinx.mcp.*
 import org.jetbrains.kotlinx.mcp.LoggingMessageNotification.SetLevelRequest
-import org.jetbrains.kotlinx.mcp.Method
-import org.jetbrains.kotlinx.mcp.PingRequest
-import org.jetbrains.kotlinx.mcp.ReadResourceRequest
-import org.jetbrains.kotlinx.mcp.ReadResourceResult
-import org.jetbrains.kotlinx.mcp.RootsListChangedNotification
-import org.jetbrains.kotlinx.mcp.SUPPORTED_PROTOCOL_VERSIONS
-import org.jetbrains.kotlinx.mcp.ServerCapabilities
-import org.jetbrains.kotlinx.mcp.SubscribeRequest
-import org.jetbrains.kotlinx.mcp.UnsubscribeRequest
 import org.jetbrains.kotlinx.mcp.shared.Protocol
 import org.jetbrains.kotlinx.mcp.shared.ProtocolOptions
 import org.jetbrains.kotlinx.mcp.shared.RequestOptions
@@ -301,6 +270,47 @@ open class Client(
         )
     }
 
+    /**
+     * Call a tool by name with a map of arguments.
+     *
+     * @param name The name of the tool to call
+     * @param arguments Map of argument name to value. Values will be converted to appropriate JSON types
+     * @param compatibility Whether to use compatibility mode for older protocol versions
+     * @param options Optional request options
+     * @return The tool call result
+     */
+    suspend fun callTool(
+        name: String,
+        arguments: Map<String, Any?>,
+        compatibility: Boolean = false,
+        options: RequestOptions? = null,
+    ): CallToolResultBase? {
+        val jsonArguments = arguments.mapValues { (_, value) ->
+            when (value) {
+                is String -> JsonPrimitive(value)
+                is Number -> JsonPrimitive(value)
+                is Boolean -> JsonPrimitive(value)
+                is JsonElement -> value
+                null -> JsonNull
+                else -> JsonPrimitive(value.toString())
+            }
+        }
+
+        val request = CallToolRequest(
+            name = name,
+            arguments = JsonObject(jsonArguments)
+        )
+        return callTool(request, compatibility, options)
+    }
+
+    /**
+     * Call a tool using a CallToolRequest.
+     *
+     * @param request The tool request containing name and arguments
+     * @param compatibility Whether to use compatibility mode for older protocol versions
+     * @param options Optional request options
+     * @return The tool call result
+     */
     suspend fun callTool(
         request: CallToolRequest,
         compatibility: Boolean = false,
