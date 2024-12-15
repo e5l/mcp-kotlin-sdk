@@ -57,7 +57,7 @@ private suspend fun Route.createMcpServer(
     val transport = createMcpTransport(session)
 
     val server = Server(
-        _serverInfo = Implementation(
+        serverInfo = Implementation(
             name = IMPLEMENTATION_NAME,
             version = LIB_VERSION,
         ),
