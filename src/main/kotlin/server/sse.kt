@@ -22,7 +22,7 @@ const val SESSION_ID_PARAM = "sessionId"
  *
  * Creates a new SSE server transport, which will direct the client to POST messages to the relative or absolute URL identified by `_endpoint`.
  */
-class SseMcpServerTransport(
+class SSEServerTransport(
     private val endpoint: String,
     private val session: ServerSSESession,
 ) : Transport {
@@ -51,8 +51,9 @@ class SseMcpServerTransport(
             data = "${endpoint.encodeURLPath()}?$SESSION_ID_PARAM=${sessionId}",
         )
 
-        @OptIn(InternalCoroutinesApi::class)
-        session.call.coroutineContext.job.invokeOnCompletion(onCancelling = true) {
+        try {
+            session.coroutineContext.job.join()
+        } finally {
             onClose?.invoke()
         }
     }

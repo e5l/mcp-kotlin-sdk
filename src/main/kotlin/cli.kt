@@ -1,21 +1,23 @@
 import client.Client
 import client.StdioClientTransport
+import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.cio.*
 import io.ktor.server.engine.*
+import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.sse.*
+import io.ktor.util.collections.*
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
+import server.SSEServerTransport
 import server.Server
 import server.ServerOptions
 import server.StdioServerTransport
-import server.mcpSse
 
 fun main(args: Array<String>) {
     if (args.isEmpty())
@@ -265,27 +267,46 @@ private fun runServer() {
 }
 
 fun runSseServer(port: Int): Unit = runBlocking {
-    val options = ServerOptions(
-        capabilities = ServerCapabilities(
-            prompts = ServerCapabilities.Prompts(listChanged = null),
-            resources = ServerCapabilities.Resources(subscribe = null, listChanged = null),
-        )
-    )
-    val server = Server(
-        Implementation(
-            name = "mcp-kotlin test server",
-            version = "0.1.0"
-        ),
-        options
-    )
+    val servers = ConcurrentMap<String, Server>()
 
     embeddedServer(CIO, host = "0.0.0.0", port = port) {
         install(SSE)
         routing {
-            mcpSse(options) {
-                while (true) {
-                    delay(100)
+            sse("/sse") {
+                val transport = SSEServerTransport("/message", this)
+                val options = ServerOptions(
+                    capabilities = ServerCapabilities(
+                        prompts = ServerCapabilities.Prompts(listChanged = null),
+                        resources = ServerCapabilities.Resources(subscribe = null, listChanged = null),
+                    )
+                )
+                val server = Server(
+                    Implementation(
+                        name = "mcp-kotlin test server",
+                        version = "0.1.0"
+                    ),
+                    options
+                )
+
+                servers[transport.sessionId] = server
+
+                server.onCloseCallback = {
+                    println("Server closed")
+                    servers.remove(transport.sessionId)
                 }
+
+                server.connect(transport)
+            }
+            post("/message") {
+                println("Received Message")
+                val sessionId: String = call.request.queryParameters["sessionId"]!!
+                val transport = servers[sessionId]?.transport as? SSEServerTransport
+                if (transport == null) {
+                    call.respond(HttpStatusCode.NotFound, "Session not found")
+                    return@post
+                }
+
+                transport.handlePostMessage(call)
             }
         }
     }.start(wait = true)
