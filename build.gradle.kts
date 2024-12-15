@@ -1,7 +1,6 @@
 plugins {
-    kotlin("jvm") version "2.0.21"
-    kotlin("plugin.serialization") version "2.0.21"
-//    id("org.jetbrains.kotlinx.atomicfu") version "0.26.1"
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
     application
 }
 
@@ -33,18 +32,18 @@ repositories {
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
-    implementation("io.ktor:ktor-client-apache:3.0.2")
-    implementation("io.ktor:ktor-client-cio:3.0.2")
-    implementation("io.ktor:ktor-server-sse:3.0.2")
-    implementation("io.ktor:ktor-server-websockets:3.0.2")
-    implementation("io.ktor:ktor-server-cio:3.0.2")
-    testImplementation(kotlin("test"))
-    testImplementation("io.mockk:mockk:1.13.13")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-debug:1.9.0")
-    testImplementation("io.ktor:ktor-server-test-host:3.0.2")
-    testImplementation("org.jetbrains.kotlin:kotlin-test:2.0.21")
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.ktor.client.apache)
+    implementation(libs.ktor.client.cio)
+    implementation(libs.ktor.server.cio)
+    implementation(libs.ktor.server.sse)
+    implementation(libs.ktor.server.websockets)
+
+    testImplementation(libs.kotlin.test)
+    testImplementation(libs.mockk)
+    testImplementation(libs.ktor.server.test.host)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.kotlinx.coroutines.debug)
 }
 
 tasks.test {
