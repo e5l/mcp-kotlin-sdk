@@ -5,12 +5,12 @@ plugins {
 }
 
 application {
-    mainClass.set("CliKt")
+    mainClass.set("org.jetbrains.kotlinx.mcp.CliKt")
 }
 
 tasks.jar {
     manifest {
-        attributes["Main-Class"] = "CliKt"
+        attributes["Main-Class"] = "org.jetbrains.kotlinx.mcp.CliKt"
     }
 
     // This will include all dependencies in the JAR
