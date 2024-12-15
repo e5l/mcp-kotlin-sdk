@@ -38,8 +38,17 @@ open class Server(
     var onCloseCallback: (() -> Unit)? = null
 ) : Protocol<ServerRequest, ServerNotification, ServerResult>(options) {
 
-    private var clientCapabilities: ClientCapabilities? = null
-    private var clientVersion: Implementation? = null
+    /**
+     * The client's reported capabilities after initialization.
+     */
+    var clientCapabilities: ClientCapabilities? = null
+        private set
+
+    /**
+     * The client's version information after initialization.
+     */
+    var clientVersion: Implementation? = null
+        private set
     private val capabilities: ServerCapabilities = options.capabilities
 
     private val tools = mutableMapOf<String, RegisteredTool>()
@@ -242,24 +251,6 @@ open class Server(
             logger.debug { "Registering resource: ${r.resource.name} (${r.resource.uri})" }
             resources[r.resource.uri] = r
         }
-    }
-
-    /**
-     * Retrieves the client's reported capabilities after initialization.
-     *
-     * @return The client's capabilities, or `null` if initialization is not yet complete.
-     */
-    fun getClientCapabilities(): ClientCapabilities? {
-        return clientCapabilities
-    }
-
-    /**
-     * Retrieves the client's version information after initialization.
-     *
-     * @return Information about the client's implementation, or `null` if initialization is not yet complete.
-     */
-    fun getClientVersion(): Implementation? {
-        return clientVersion
     }
 
     /**

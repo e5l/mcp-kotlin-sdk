@@ -7,6 +7,12 @@ import io.ktor.server.websocket.*
 import org.jetbrains.kotlinx.mcp.shared.IMPLEMENTATION_NAME
 import shared.LIB_VERSION
 
+/**
+ * Registers a WebSocket route that establishes an MCP (Model Context Protocol) server session.
+ *
+ * @param options Optional server configuration settings for the MCP server.
+ * @param handler A suspend function that defines the server's behavior.
+ */
 fun Route.mcpWebSocket(
     options: ServerOptions? = null,
     handler: suspend Server.() -> Unit = {},
@@ -16,6 +22,13 @@ fun Route.mcpWebSocket(
     }
 }
 
+/**
+ * Registers a WebSocket route at the specified [path] that establishes an MCP server session.
+ *
+ * @param path The URL path at which to register the WebSocket route.
+ * @param options Optional server configuration settings for the MCP server.
+ * @param handler A suspend function that defines the server's behavior.
+ */
 fun Route.mcpWebSocket(
     path: String,
     options: ServerOptions? = null,
@@ -26,6 +39,11 @@ fun Route.mcpWebSocket(
     }
 }
 
+/**
+ * Registers a WebSocket route that creates an MCP server transport layer.
+ *
+ * @param handler A suspend function that defines the behavior of the transport layer.
+ */
 fun Route.mcpWebSocketTransport(
     handler: suspend WebSocketMcpServerTransport.() -> Unit = {},
 ) {
@@ -37,6 +55,12 @@ fun Route.mcpWebSocketTransport(
     }
 }
 
+/**
+ * Registers a WebSocket route at the specified [path] that creates an MCP server transport layer.
+ *
+ * @param path The URL path at which to register the WebSocket route.
+ * @param handler A suspend function that defines the behavior of the transport layer.
+ */
 fun Route.mcpWebSocketTransport(
     path: String,
     handler: suspend WebSocketMcpServerTransport.() -> Unit = {},
@@ -48,6 +72,7 @@ fun Route.mcpWebSocketTransport(
         transport.close()
     }
 }
+
 
 private suspend fun Route.createMcpServer(
     session: WebSocketServerSession,

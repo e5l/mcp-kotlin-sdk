@@ -5,6 +5,11 @@ import io.ktor.server.websocket.*
 import org.jetbrains.kotlinx.mcp.shared.MCP_SUBPROTOCOL
 import org.jetbrains.kotlinx.mcp.shared.WebSocketMcpTransport
 
+/**
+ * Server-side implementation of the MCP (Model Context Protocol) transport over WebSocket.
+ *
+ * @property session The WebSocket server session used for communication.
+ */
 class WebSocketMcpServerTransport(
     override val session: WebSocketServerSession,
 ) : WebSocketMcpTransport() {

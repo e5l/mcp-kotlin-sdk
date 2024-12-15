@@ -1,5 +1,6 @@
 package org.jetbrains.kotlinx.mcp.server
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.jetbrains.kotlinx.mcp.JSONRPCMessage
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -8,6 +9,7 @@ import org.jetbrains.kotlinx.mcp.shared.Transport
 import org.jetbrains.kotlinx.mcp.shared.serializeMessage
 import java.io.BufferedInputStream
 import java.io.PrintStream
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -19,26 +21,24 @@ class StdioServerTransport(
     private val inputStream: BufferedInputStream = BufferedInputStream(System.`in`),
     private val outputStream: PrintStream = System.out
 ) : Transport {
+    private val logger = KotlinLogging.logger {}
     override var onClose: (() -> Unit)? = null
     override var onError: ((Throwable) -> Unit)? = null
     override var onMessage: (suspend (JSONRPCMessage) -> Unit)? = null
 
     private val readBuffer = ReadBuffer()
-    private var started = false
+    private var initialized = AtomicBoolean(false)
     private var readingJob: Job? = null
 
     private val coroutineContext: CoroutineContext = Dispatchers.IO + SupervisorJob()
     private val scope = CoroutineScope(coroutineContext)
     private val readChannel = Channel<ByteArray>(Channel.UNLIMITED)
+    private val outputWriter = outputStream.bufferedWriter()
 
     override suspend fun start() {
-        if (started) {
-            throw IllegalStateException(
-                "StdioServerTransport already started!"
-            )
+        if (!initialized.compareAndSet(false, true)) {
+            error("StdioServerTransport already started!")
         }
-
-        started = true
 
         // Launch a coroutine to read from stdin
         readingJob = scope.launch {
@@ -56,6 +56,7 @@ class StdioServerTransport(
                     }
                 }
             } catch (e: Throwable) {
+                logger.error(e) { "Error reading from stdin" }
                 onError?.invoke(e)
             } finally {
                 // Reached EOF or error, close connection
@@ -96,8 +97,7 @@ class StdioServerTransport(
     }
 
     override suspend fun close() {
-        if (!started) return
-        started = false
+        if (!initialized.compareAndSet(true, false)) return
 
         // Cancel reading job and close channel
         readingJob?.cancel() // ToDO("was cancel and join")
@@ -109,10 +109,10 @@ class StdioServerTransport(
 
     override suspend fun send(message: JSONRPCMessage) {
         val json = serializeMessage(message)
-        synchronized(outputStream) {
+        synchronized(outputWriter) {
             // You may need to add Content-Length headers before the message if using the LSP framing protocol
-            outputStream.print(json)
-            outputStream.flush()
+            outputWriter.write(json)
+            outputWriter.flush()
         }
     }
 }

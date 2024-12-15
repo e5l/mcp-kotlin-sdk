@@ -10,6 +10,9 @@ import io.ktor.util.collections.*
 
 private val logger = KotlinLogging.logger {}
 
+/**
+ * Configures the Ktor Application to handle Model Context Protocol (MCP) over Server-Sent Events (SSE).
+ */
 fun Application.MCP(block: () -> Server) {
     val servers = ConcurrentMap<String, Server>()
 
@@ -19,7 +22,7 @@ fun Application.MCP(block: () -> Server) {
             val transport = SSEServerTransport("/message", this)
             logger.info { "New SSE connection established with sessionId: ${transport.sessionId}" }
 
-           val server = block()
+            val server = block()
 
             servers[transport.sessionId] = server
             logger.debug { "Server instance created and stored for sessionId: ${transport.sessionId}" }
