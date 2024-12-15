@@ -55,7 +55,7 @@ class ServerOptions(
 open class Server(
     private val _serverInfo: Implementation,
     options: ServerOptions,
-    val onCloseCallback : (() -> Unit)? = null
+    var onCloseCallback : (() -> Unit)? = null
 ) : Protocol<ServerRequest, ServerNotification, ServerResult>(options) {
 
     private var _clientCapabilities: ClientCapabilities? = null
