@@ -1,6 +1,7 @@
 package shared
 
 import CancelledNotification
+import EmptyRequestResult
 import ErrorCode
 import JSONRPCError
 import JSONRPCNotification
@@ -171,7 +172,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
         }
 
         setRequestHandler<PingRequest>(Method.Defined.Ping) { request, _ ->
-            null
+            EmptyRequestResult() as SendResultT
         }
     }
 
@@ -460,8 +461,13 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
 
         requestHandlers[method.value] = { request, extraHandler ->
             val result = request.params?.let { McpJson.decodeFromJsonElement(serializer, it) }
-                ?: error("Can't deserializer null to $type for method $method")
-            block(result as T, extraHandler)
+            val response = if (result != null) {
+                block(result as T, extraHandler)
+            } else {
+                EmptyRequestResult()
+            }
+
+            response as SendResultT
         }
     }
 

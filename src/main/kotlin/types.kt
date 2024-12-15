@@ -697,7 +697,7 @@ class Prompt(
     /**
      * A list of arguments to use for templating the prompt.
      */
-    val arguments: Array<PromptArgument>?,
+    val arguments: List<PromptArgument>?,
 )
 
 /**
@@ -716,8 +716,8 @@ data class ListPromptsRequest(
  */
 @Serializable
 class ListPromptsResult(
-    val prompts: Array<Prompt>,
-    override val nextCursor: Cursor?,
+    val prompts: List<Prompt>,
+    override val nextCursor: Cursor? = null,
     override val _meta: JsonObject = EmptyJsonObject,
 ) : ServerResult, PaginatedResult
 
@@ -834,7 +834,7 @@ class GetPromptResult(
      * An optional description for the prompt.
      */
     val description: String?,
-    val messages: Array<PromptMessage>,
+    val messages: List<PromptMessage>,
     override val _meta: JsonObject = EmptyJsonObject,
 ) : ServerResult
 
