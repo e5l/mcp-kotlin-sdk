@@ -9,6 +9,8 @@ import io.ktor.server.routing.*
 import io.ktor.server.sse.sse
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.runTest
+import mcpSse
+import mcpSseTransport
 import org.junit.jupiter.api.Test
 
 private const val PORT = 8080
@@ -48,7 +50,6 @@ class SseTransportTest : BaseTransportTest() {
                     onMessage = {
                         send(it)
                     }
-                    clientFinished.await()
                 }
             }
         }.start(wait = false)
@@ -63,8 +64,6 @@ class SseTransportTest : BaseTransportTest() {
         }
 
         testClientRead(client)
-        clientFinished.complete(Unit)
-
         server.stop()
     }
 }

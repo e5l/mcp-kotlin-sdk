@@ -889,7 +889,7 @@ data class ListToolsRequest(
  */
 @Serializable
 class ListToolsResult(
-    val tools: Array<Tool>,
+    val tools: List<Tool>,
     override val nextCursor: Cursor?,
     override val _meta: JsonObject = EmptyJsonObject,
 ) : ServerResult, PaginatedResult
@@ -899,7 +899,7 @@ class ListToolsResult(
  */
 @Serializable
 sealed interface CallToolResultBase : ServerResult {
-    val content: Array<PromptMessageContent>
+    val content: List<PromptMessageContent>
     val isError: Boolean? get() = false
 }
 
@@ -908,7 +908,7 @@ sealed interface CallToolResultBase : ServerResult {
  */
 @Serializable
 class CallToolResult(
-    override val content: Array<PromptMessageContent>,
+    override val content: List<PromptMessageContent>,
     override val isError: Boolean? = false,
     override val _meta: JsonObject = EmptyJsonObject,
 ) : CallToolResultBase
@@ -918,7 +918,7 @@ class CallToolResult(
  */
 @Serializable
 class CompatibilityCallToolResult(
-    override val content: Array<PromptMessageContent>,
+    override val content: List<PromptMessageContent>,
     override val isError: Boolean? = false,
     override val _meta: JsonObject = EmptyJsonObject,
     val toolResult: JsonObject = EmptyJsonObject,
@@ -1021,7 +1021,7 @@ class ModelPreferences(
     /**
      * Optional hints to use for model selection.
      */
-    val hints: Array<ModelHint>?,
+    val hints: List<ModelHint>?,
     /**
      * How much to prioritize cost when selecting a model.
      */
@@ -1064,7 +1064,7 @@ data class SamplingMessage(
  */
 @Serializable
 data class CreateMessageRequest(
-    val messages: Array<SamplingMessage>,
+    val messages: List<SamplingMessage>,
     /**
      * An optional system prompt the server wants to use for sampling. The client MAY modify or omit this prompt.
      */
@@ -1078,7 +1078,7 @@ data class CreateMessageRequest(
      * The maximum number of tokens to sample, as requested by the server. The client MAY choose to sample fewer tokens than requested.
      */
     val maxTokens: Int,
-    val stopSequences: Array<String>?,
+    val stopSequences: List<String>?,
     /**
      * Optional metadata to pass through to the LLM provider. The format of this metadata is provider-specific.
      */
@@ -1224,9 +1224,9 @@ data class CompleteResult(
     @Serializable
     class Completion(
         /**
-         * An array of completion values. Must not exceed 100 items.
+         * An List of completion values. Must not exceed 100 items.
          */
-        val values: Array<String>,
+        val values: List<String>,
         /**
          * The total number of completion options available. This can exceed the number of values actually sent in the response.
          */
@@ -1280,7 +1280,7 @@ class ListRootsRequest(override val _meta: JsonObject = EmptyJsonObject) : Serve
  */
 @Serializable
 class ListRootsResult(
-    val roots: Array<Root>,
+    val roots: List<Root>,
     override val _meta: JsonObject = EmptyJsonObject,
 ) : ClientResult
 
