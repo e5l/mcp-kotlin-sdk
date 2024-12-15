@@ -22,7 +22,10 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
+import kotlinx.serialization.*
+import kotlinx.serialization.modules.SerializersModule
 import toJSON
+import kotlin.reflect.typeOf
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -46,7 +49,7 @@ class AbortSignal {
 }
 
 @OptIn(ExperimentalSerializationApi::class)
-internal val McpJson by lazy {
+public val McpJson: Json by lazy {
     Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
@@ -124,7 +127,8 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
     var transport: Transport? = null
         private set
 
-    private val requestHandlers: MutableMap<String, suspend (request: JSONRPCRequest, extra: RequestHandlerExtra) -> SendResultT?> =
+    @PublishedApi
+    internal val requestHandlers: MutableMap<String, suspend (request: JSONRPCRequest, extra: RequestHandlerExtra) -> SendResultT?> =
         mutableMapOf()
     val notificationHandlers: MutableMap<String, suspend (notification: JSONRPCNotification) -> Unit> =
         mutableMapOf()
@@ -337,7 +341,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
      *
      * This should be implemented by subclasses.
      */
-    protected abstract fun assertRequestHandlerCapability(method: Method)
+    abstract fun assertRequestHandlerCapability(method: Method)
 
     /**
      * Sends a request and wait for a response.
@@ -445,16 +449,19 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
      *
      * Note that this will replace any previous request handler for the same method.
      */
-    fun <T : Request?> setRequestHandler(
+    inline fun <reified T : Request> setRequestHandler(
         method: Method,
-        block: suspend (T, RequestHandlerExtra) -> SendResultT?
+        noinline block: suspend (T, RequestHandlerExtra) -> SendResultT?
     ) {
         assertRequestHandlerCapability(method)
 
+        val type = typeOf<T>()
+        val serializer = McpJson.serializersModule.serializer(type)
+
         requestHandlers[method.value] = { request, extraHandler ->
-            val fromJSON = request.fromJSON()
-            val p1 = fromJSON as T
-            block(p1, extraHandler)
+            val result = request.params?.let { McpJson.decodeFromJsonElement(serializer, it) }
+                ?: error("Can't deserializer null to $type for method $method")
+            block(result as T, extraHandler)
         }
     }
 

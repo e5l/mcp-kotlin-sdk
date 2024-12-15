@@ -225,7 +225,7 @@ class ClientTest {
         }
 
         server.setRequestHandler<ListResourcesRequest>(Method.Defined.ResourcesList) { request, _ ->
-            ListResourcesResult(resources = emptyArray(), nextCursor = null)
+            ListResourcesResult(resources = emptyList(), nextCursor = null)
         }
 
         server.setRequestHandler<ListToolsRequest>(Method.Defined.ToolsList) { request, _ ->
@@ -393,7 +393,7 @@ class ClientTest {
                 throw e
             }
             fail("Shouldn't have been called")
-            ListResourcesResult(resources = emptyArray())
+            ListResourcesResult(resources = emptyList())
         }
 
         val (clientTransport, serverTransport) = InMemoryTransport.createLinkedPair()
@@ -449,7 +449,7 @@ class ClientTest {
             } catch (e: Exception) {
                 // If aborted, just rethrow or return early
             }
-            ListResourcesResult(resources = emptyArray())
+            ListResourcesResult(resources = emptyList())
         }
 
         val (clientTransport, serverTransport) = InMemoryTransport.createLinkedPair()
