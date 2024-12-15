@@ -306,18 +306,18 @@ open class Client(
     }
 
     suspend fun callTool(
-        reuquest: CallToolRequest,
+        request: CallToolRequest,
         compatibility: Boolean = false,
         options: RequestOptions? = null,
     ): CallToolResultBase? {
         return if (compatibility) {
-            request<CompatibilityCallToolResult>(
-                reuquest,
+            this@Client.request<CompatibilityCallToolResult>(
+                request,
                 options
             )
         } else {
-            request<CallToolResult>(
-                reuquest,
+            this@Client.request<CallToolResult>(
+                request,
                 options
             )
         }
