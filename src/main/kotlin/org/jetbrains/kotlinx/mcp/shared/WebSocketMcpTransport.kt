@@ -15,20 +15,30 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import java.util.concurrent.atomic.AtomicBoolean
 
-const val MCP_SUBPROTOCOL = "mcp"
+internal const val MCP_SUBPROTOCOL = "mcp"
 
+/**
+ * Abstract class representing a WebSocket transport for the Model Context Protocol (MCP).
+ * Handles communication over a WebSocket session.
+ */
 abstract class WebSocketMcpTransport : Transport {
     private val scope by lazy {
         CoroutineScope(session.coroutineContext + SupervisorJob())
     }
 
     private val initialized = AtomicBoolean(false)
+    /**
+     * The WebSocket session used for communication.
+     */
     protected abstract val session: WebSocketSession
 
     override var onClose: (() -> Unit)? = null
     override var onError: ((Throwable) -> Unit)? = null
     override var onMessage: (suspend ((JSONRPCMessage) -> Unit))? = null
 
+    /**
+     * Initializes the WebSocket session
+     */
     protected abstract suspend fun initializeSession()
 
     override suspend fun start() {

@@ -383,4 +383,4 @@ internal object JSONRPCMessagePolymorphicSerializer :
     }
 }
 
-val EmptyJsonObject = JsonObject(emptyMap())
+internal val EmptyJsonObject = JsonObject(emptyMap())
