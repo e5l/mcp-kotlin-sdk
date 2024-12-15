@@ -64,7 +64,6 @@ private fun runDemo() {
 
             val serverCapabilities = client.getServerCapabilities()
 
-
             // Resources capability check
             serverCapabilities?.resources?.let {
                 try {
@@ -95,7 +94,7 @@ private fun runDemo() {
                 }
             }
 
-            // Prompts capability check (commented out but showing proper structure)
+            // Prompts capability check
             serverCapabilities?.prompts?.let {
                 try {
                     val prompts = client.listPrompts()
@@ -164,25 +163,20 @@ private fun runServer() {
         }
     )
 
-    server.setRequestHandler<ListPromptsRequest>(Method.Defined.PromptsList) { request, extra ->
-        val prompt = Prompt(
-            name = "Kotlin Developer",
-            description = "Develop small kotlin applicatoins",
-            arguments = listOf(
-                PromptArgument(
-                    name = "Project Name",
-                    description = "Project name for the new project",
-                    required = true
-                )
+    // Define a prompt and register it
+    val prompt = Prompt(
+        name = "Kotlin Developer",
+        description = "Develop small kotlin applications",
+        arguments = listOf(
+            PromptArgument(
+                name = "Project Name",
+                description = "Project name for the new project",
+                required = true
             )
         )
-        ListPromptsResult(
-            prompts = listOf(prompt)
-        )
-    }
+    )
 
-    server.setRequestHandler<GetPromptRequest>(Method.Defined.PromptsGet) { request, extra ->
-
+    server.addPrompt(prompt) { request ->
         GetPromptResult(
             "Description for ${request.name}",
             messages = listOf(
@@ -194,65 +188,33 @@ private fun runServer() {
         )
     }
 
-    server.setRequestHandler<ListToolsRequest>(Method.Defined.ToolsList) { request, _ ->
-        val tools = listOf(
-            Tool(
-                name = "Test org.jetbrains.kotlinx.mcp.Tool",
-                description = "A test tool",
-                inputSchema = Tool.Input(),
-            )
-        )
-        ListToolsResult(
-            tools = tools,
-            nextCursor = null,
-        )
-    }
-
-    server.setRequestHandler<CallToolRequest>(Method.Defined.ToolsCall) { request, _ ->
-        val result: List<PromptMessageContent> = listOf(
-            TextContent(
-                text = "Hello, world!"
-            )
-        )
+    // Add a tool
+    server.addTool(
+        name = "Test org.jetbrains.kotlinx.mcp.Tool",
+        description = "A test tool",
+        inputSchema = Tool.Input()
+    ) { request ->
         CallToolResult(
-            content = result,
+            content = listOf(TextContent("Hello, world!"))
         )
     }
 
-    server.setRequestHandler<ListResourcesRequest>(Method.Defined.ResourcesList) { request, _ ->
-        val search = Resource(
-            "https://google.com/",
-            "Google Search",
-            "Web search engine",
-            "text/html"
-        )
-
-        ListResourcesResult(
-            resources = listOf(search)
-        )
-    }
-
-    server.setRequestHandler<ReadResourceRequest>(Method.Defined.ResourcesRead) { request, extra ->
-        val uri: String = request.uri
-
-        // Handles all resources at once
-
+    // Add a resource
+    server.addResource(
+        uri = "https://google.com/",
+        name = "Google Search",
+        description = "Web search engine",
+        mimeType = "text/html"
+    ) { request ->
         ReadResourceResult(
             contents = listOf(
-                TextResourceContents("Placeholder content for $uri", uri, "text/html")
+                TextResourceContents("Placeholder content for ${request.uri}", request.uri, "text/html")
             )
         )
     }
 
-    server.setRequestHandler<ListResourceTemplatesRequest>(Method.Defined.ResourcesTemplatesList) { request, extra ->
-        val element = ResourceTemplate(
-            uriTemplate = "https://google.com/q={query}",
-            name = "Google Search template",
-            description = "Google search template",
-            mimeType = "text/html"
-        )
-        ListResourceTemplatesResult(listOf(element))
-    }
+    // Note: The server will handle listing prompts, tools, and resources automatically.
+    // The handleListResourceTemplates will return empty as defined in the Server code.
 
     val transport = StdioServerTransport()
 
@@ -288,6 +250,9 @@ fun runSseServer(port: Int): Unit = runBlocking {
                     ),
                     options
                 )
+
+                // For SSE, you can also add prompts/tools/resources if needed:
+                // server.addTool(...), server.addPrompt(...), server.addResource(...)
 
                 servers[transport.sessionId] = server
 
