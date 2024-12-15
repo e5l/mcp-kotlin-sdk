@@ -757,7 +757,7 @@ data class TextContent(
     /**
      * The text content of the message.
      */
-    val text: String,
+    val text: String? = null,
 ) : PromptMessageContentTextOrImage {
     override val type: String = TYPE
 
