@@ -43,6 +43,7 @@ import org.jetbrains.kotlinx.mcp.Tool
 import org.jetbrains.kotlinx.mcp.ToolListChangedNotification
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.serialization.json.JsonObject
+import org.jetbrains.kotlinx.mcp.PromptArgument
 import org.jetbrains.kotlinx.mcp.shared.Protocol
 import org.jetbrains.kotlinx.mcp.shared.ProtocolOptions
 import org.jetbrains.kotlinx.mcp.shared.RequestOptions
@@ -160,11 +161,24 @@ open class Server(
     /**
      * Register a prompt.
      */
-    fun addPrompt(prompt: Prompt, messageProvider: suspend (GetPromptRequest) -> GetPromptResult) {
+    fun addPrompt(prompt: Prompt, promptProvider: suspend (GetPromptRequest) -> GetPromptResult) {
         if (capabilities.prompts == null) {
             throw IllegalStateException("Server does not support prompts capability.")
         }
-        prompts[prompt.name] = RegisteredPrompt(prompt, messageProvider)
+        prompts[prompt.name] = RegisteredPrompt(prompt, promptProvider)
+    }
+
+    /**
+     * Register a prompt using individual parameters.
+     */
+    fun addPrompt(
+        name: String,
+        description: String? = null,
+        arguments: List<PromptArgument>? = null,
+        promptProvider: suspend (GetPromptRequest) -> GetPromptResult
+    ) {
+        val prompt = Prompt(name = name, description = description, arguments = arguments)
+        addPrompt(prompt, promptProvider)
     }
 
     /**
