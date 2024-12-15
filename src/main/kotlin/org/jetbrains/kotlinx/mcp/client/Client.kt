@@ -11,10 +11,13 @@ import org.jetbrains.kotlinx.mcp.shared.ProtocolOptions
 import org.jetbrains.kotlinx.mcp.shared.RequestOptions
 import org.jetbrains.kotlinx.mcp.shared.Transport
 
+/**
+ * Options for configuring the MCP client.
+ *
+ * @property capabilities The capabilities this client supports.
+ * @property enforceStrictCapabilities Whether to strictly enforce capabilities when interacting with the server.
+ */
 class ClientOptions(
-    /**
-     * Capabilities to advertise as being supported by this client.
-     */
     val capabilities: ClientCapabilities = ClientCapabilities(),
     enforceStrictCapabilities: Boolean = true,
 ) : ProtocolOptions(enforceStrictCapabilities = enforceStrictCapabilities)
@@ -22,19 +25,13 @@ class ClientOptions(
 /**
  * An MCP client on top of a pluggable transport.
  *
- * The client will automatically begin the initialization flow with the server when connect() is called.
+ * The client automatically performs the initialization handshake with the server when [connect] is called.
+ * After initialization, [getServerCapabilities] and [getServerVersion] provide details about the connected server.
  *
- * To use with custom types, define custom request/notification/result types and pass them as type parameters:
+ * You can extend this class with custom request/notification/result types if needed.
  *
- * Example:
- * ```kotlin
- * // Define custom data classes/types for requests, notifications, and results.
- *
- * class CustomClient(
- *     clientInfo: org.jetbrains.kotlinx.mcp.Implementation,
- *     options: ClientOptions
- * ) : Client<org.jetbrains.kotlinx.mcp.CustomRequest, CustomNotification, CustomResult>(clientInfo, options)
- * ```
+ * @param clientInfo Information about the client implementation (name, version).
+ * @param options Configuration options for this client.
  */
 open class Client(
     private val clientInfo: Implementation,
@@ -60,7 +57,12 @@ open class Client(
         }
     }
 
-
+    /**
+     * Connects the client to the given [transport], performing the initialization handshake with the server.
+     *
+     * @param transport The transport to use for communication with the server.
+     * @throws IllegalStateException If the server's protocol version is not supported.
+     */
     override suspend fun connect(transport: Transport) {
         super.connect(transport)
 
@@ -89,14 +91,18 @@ open class Client(
     }
 
     /**
-     * After initialization has completed, this will be populated with the server's reported capabilities.
+     * Retrieves the server's reported capabilities after the initialization process completes.
+     *
+     * @return The server's capabilities, or `null` if initialization is not yet complete.
      */
     fun getServerCapabilities(): ServerCapabilities? {
         return serverCapabilities
     }
 
     /**
-     * After initialization has completed, this will be populated with information about the server's name and version.
+     * Retrieves the server's reported version information after initialization.
+     *
+     * @return Information about the server's implementation, or `null` if initialization is not yet complete.
      */
     fun getServerVersion(): Implementation? {
         return serverVersion
@@ -206,25 +212,60 @@ open class Client(
         }
     }
 
-    suspend fun ping(options: RequestOptions? = null) {
-        request<EmptyRequestResult>(PingRequest(), options)
+
+    /**
+     * Sends a ping request to the server to check connectivity.
+     *
+     * @param options Optional request options.
+     * @throws IllegalStateException If the server does not support the ping method (unlikely).
+     */
+    suspend fun ping(options: RequestOptions? = null): EmptyRequestResult {
+        return request<EmptyRequestResult>(PingRequest(), options)
     }
 
+    /**
+     * Sends a completion request to the server, typically to generate or complete some content.
+     *
+     * @param params The completion request parameters.
+     * @param options Optional request options.
+     * @return The completion result returned by the server, or `null` if none.
+     * @throws IllegalStateException If the server does not support prompts or completion.
+     */
     suspend fun complete(params: CompleteRequest, options: RequestOptions? = null): CompleteResult? {
         return request<CompleteResult>(params, options)
     }
 
-    suspend fun setLoggingLevel(level: LoggingLevel, options: RequestOptions? = null) {
-        request<EmptyRequestResult>(
-            SetLevelRequest(level),
-            options
-        )
+    /**
+     * Sets the logging level on the server.
+     *
+     * @param level The desired logging level.
+     * @param options Optional request options.
+     * @throws IllegalStateException If the server does not support logging.
+     */
+    suspend fun setLoggingLevel(level: LoggingLevel, options: RequestOptions? = null): EmptyRequestResult {
+        return request<EmptyRequestResult>(SetLevelRequest(level), options)
     }
 
+    /**
+     * Retrieves a prompt by name from the server.
+     *
+     * @param request The prompt request containing the prompt name.
+     * @param options Optional request options.
+     * @return The requested prompt details, or `null` if not found.
+     * @throws IllegalStateException If the server does not support prompts.
+     */
     suspend fun getPrompt(request: GetPromptRequest, options: RequestOptions? = null): GetPromptResult? {
         return request<GetPromptResult>(request, options)
     }
 
+    /**
+     * Lists all available prompts from the server.
+     *
+     * @param request A request object for listing prompts (usually empty).
+     * @param options Optional request options.
+     * @return The list of available prompts, or `null` if none.
+     * @throws IllegalStateException If the server does not support prompts.
+     */
     suspend fun listPrompts(
         request: ListPromptsRequest = ListPromptsRequest(),
         options: RequestOptions? = null,
@@ -232,6 +273,14 @@ open class Client(
         return request<ListPromptsResult>(request, options)
     }
 
+    /**
+     * Lists all available resources from the server.
+     *
+     * @param request A request object for listing resources (usually empty).
+     * @param options Optional request options.
+     * @return The list of resources, or `null` if none.
+     * @throws IllegalStateException If the server does not support resources.
+     */
     suspend fun listResources(
         request: ListResourcesRequest = ListResourcesRequest(),
         options: RequestOptions? = null,
@@ -239,45 +288,64 @@ open class Client(
         return request<ListResourcesResult>(request, options)
     }
 
+    /**
+     * Lists resource templates available on the server.
+     *
+     * @param request The request object for listing resource templates.
+     * @param options Optional request options.
+     * @return The list of resource templates, or `null` if none.
+     * @throws IllegalStateException If the server does not support resources.
+     */
     suspend fun listResourceTemplates(
         request: ListResourceTemplatesRequest,
         options: RequestOptions? = null,
     ): ListResourceTemplatesResult? {
-        return request<ListResourceTemplatesResult>(
-            request,
-            options
-        )
-    }
-
-    suspend fun readResource(request: ReadResourceRequest, options: RequestOptions? = null): ReadResourceResult? {
-        return request<ReadResourceResult>(
-            request,
-            options
-        )
-    }
-
-    suspend fun subscribeResource(request: SubscribeRequest, options: RequestOptions? = null) {
-        request<EmptyRequestResult>(
-            request,
-            options
-        )
-    }
-
-    suspend fun unsubscribeResource(request: UnsubscribeRequest, options: RequestOptions? = null) {
-        request<EmptyRequestResult>(
-            request,
-            options
-        )
+        return request<ListResourceTemplatesResult>(request, options)
     }
 
     /**
-     * Call a tool by name with a map of arguments.
+     * Reads a resource from the server by its URI.
      *
-     * @param name The name of the tool to call
-     * @param arguments Map of argument name to value. Values will be converted to appropriate JSON types
-     * @param compatibility Whether to use compatibility mode for older protocol versions
-     * @param options Optional request options
-     * @return The tool call result
+     * @param request The request object containing the resource URI.
+     * @param options Optional request options.
+     * @return The resource content, or `null` if the resource is not found.
+     * @throws IllegalStateException If the server does not support resources.
+     */
+    suspend fun readResource(request: ReadResourceRequest, options: RequestOptions? = null): ReadResourceResult? {
+        return request<ReadResourceResult>(request, options)
+    }
+
+    /**
+     * Subscribes to resource changes on the server.
+     *
+     * @param request The subscription request containing resource details.
+     * @param options Optional request options.
+     * @throws IllegalStateException If the server does not support resource subscriptions.
+     */
+    suspend fun subscribeResource(request: SubscribeRequest, options: RequestOptions? = null): EmptyRequestResult {
+        return request<EmptyRequestResult>(request, options)
+    }
+
+    /**
+     * Unsubscribes from resource changes on the server.
+     *
+     * @param request The unsubscribe request containing resource details.
+     * @param options Optional request options.
+     * @throws IllegalStateException If the server does not support resource subscriptions.
+     */
+    suspend fun unsubscribeResource(request: UnsubscribeRequest, options: RequestOptions? = null): EmptyRequestResult {
+        return request<EmptyRequestResult>(request, options)
+    }
+
+    /**
+     * Calls a tool on the server by name, passing the specified arguments.
+     *
+     * @param name The name of the tool to call.
+     * @param arguments A map of argument names to values for the tool.
+     * @param compatibility Whether to use compatibility mode for older protocol versions.
+     * @param options Optional request options.
+     * @return The result of the tool call, or `null` if none.
+     * @throws IllegalStateException If the server does not support tools.
      */
     suspend fun callTool(
         name: String,
@@ -304,12 +372,13 @@ open class Client(
     }
 
     /**
-     * Call a tool using a CallToolRequest.
+     * Calls a tool on the server using a [CallToolRequest] object.
      *
-     * @param request The tool request containing name and arguments
-     * @param compatibility Whether to use compatibility mode for older protocol versions
-     * @param options Optional request options
-     * @return The tool call result
+     * @param request The request object containing the tool name and arguments.
+     * @param compatibility Whether to use compatibility mode for older protocol versions.
+     * @param options Optional request options.
+     * @return The result of the tool call, or `null` if none.
+     * @throws IllegalStateException If the server does not support tools.
      */
     suspend fun callTool(
         request: CallToolRequest,
@@ -317,27 +386,33 @@ open class Client(
         options: RequestOptions? = null,
     ): CallToolResultBase? {
         return if (compatibility) {
-            this@Client.request<CompatibilityCallToolResult>(
-                request,
-                options
-            )
+            request<CompatibilityCallToolResult>(request, options)
         } else {
-            this@Client.request<CallToolResult>(
-                request,
-                options
-            )
+            request<CallToolResult>(request, options)
         }
     }
 
+    /**
+     * Lists all available tools on the server.
+     *
+     * @param request A request object for listing tools (usually empty).
+     * @param options Optional request options.
+     * @return The list of available tools, or `null` if none.
+     * @throws IllegalStateException If the server does not support tools.
+     */
     suspend fun listTools(
         request: ListToolsRequest = ListToolsRequest(),
         options: RequestOptions? = null,
-    ): ListToolsResult? =
-        request<ListToolsResult>(
-            request,
-            options
-        )
+    ): ListToolsResult? {
+        return request<ListToolsResult>(request, options)
+    }
 
+    /**
+     * Notifies the server that the list of roots has changed.
+     * Typically used if the client is managing some form of hierarchical structure.
+     *
+     * @throws IllegalStateException If the client or server does not support roots.
+     */
     suspend fun sendRootsListChanged() {
         notification(RootsListChangedNotification())
     }
