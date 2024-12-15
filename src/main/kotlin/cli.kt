@@ -144,6 +144,8 @@ private fun fillSchema(schema: Tool.Input): JsonObject {
 private fun runServer() {
     val def = CompletableDeferred<Unit>()
 
+    val resources = ServerCapabilities.Resources(subscribe = true, listChanged = true)
+
     val server = Server(
         Implementation(
             name = "mcp-kotlin test server",
@@ -152,7 +154,7 @@ private fun runServer() {
         ServerOptions(
             capabilities = ServerCapabilities(
                 prompts = ServerCapabilities.Prompts(listChanged = null),
-                resources = ServerCapabilities.Resources(subscribe = null, listChanged = null),
+                resources = resources,
                 tools = ServerCapabilities.Tools(listChanged = null),
             )
         ),
@@ -184,6 +186,27 @@ private fun runServer() {
         CallToolResult(
             content = result,
         )
+    }
+
+    server.setRequestHandler<ListResourcesRequest>(Method.Defined.ResourcesList) { request, _ ->
+        val search = Resource(
+            "https://google.com/",
+            "Google Search",
+            "Web search engine",
+            "text/html"
+        )
+
+        ListResourcesResult(
+            resources = listOf(search)
+        )
+    }
+
+    server.setRequestHandler<ReadResourceRequest>(Method.Defined.ResourcesRead) { request, extra ->
+        val uri: String = request.uri
+
+        ReadResourceResult(contents = listOf(
+            TextResourceContents("Placeholder content for $uri", uri, "text/html")
+        ))
     }
 
     val transport = StdioServerTransport()
