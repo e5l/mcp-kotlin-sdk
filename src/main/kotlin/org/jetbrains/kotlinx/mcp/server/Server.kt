@@ -65,30 +65,36 @@ open class Server(
         }
 
         // Internal handlers for tools
-        setRequestHandler<ListToolsRequest>(Method.Defined.ToolsList) { _, _ ->
-            handleListTools()
-        }
-        setRequestHandler<CallToolRequest>(Method.Defined.ToolsCall) { request, _ ->
-            handleCallTool(request)
+        if (capabilities.tools != null) {
+            setRequestHandler<ListToolsRequest>(Method.Defined.ToolsList) { _, _ ->
+                handleListTools()
+            }
+            setRequestHandler<CallToolRequest>(Method.Defined.ToolsCall) { request, _ ->
+                handleCallTool(request)
+            }
         }
 
         // Internal handlers for prompts
-        setRequestHandler<ListPromptsRequest>(Method.Defined.PromptsList) { _, _ ->
-            handleListPrompts()
-        }
-        setRequestHandler<GetPromptRequest>(Method.Defined.PromptsGet) { request, _ ->
-            handleGetPrompt(request)
+        if (capabilities.prompts != null) {
+            setRequestHandler<ListPromptsRequest>(Method.Defined.PromptsList) { _, _ ->
+                handleListPrompts()
+            }
+            setRequestHandler<GetPromptRequest>(Method.Defined.PromptsGet) { request, _ ->
+                handleGetPrompt(request)
+            }
         }
 
         // Internal handlers for resources
-        setRequestHandler<ListResourcesRequest>(Method.Defined.ResourcesList) { _, _ ->
-            handleListResources()
-        }
-        setRequestHandler<ReadResourceRequest>(Method.Defined.ResourcesRead) { request, _ ->
-            handleReadResource(request)
-        }
-        setRequestHandler<ListResourceTemplatesRequest>(Method.Defined.ResourcesTemplatesList) { _, _ ->
-            handleListResourceTemplates()
+        if (capabilities.resources != null) {
+            setRequestHandler<ListResourcesRequest>(Method.Defined.ResourcesList) { _, _ ->
+                handleListResources()
+            }
+            setRequestHandler<ReadResourceRequest>(Method.Defined.ResourcesRead) { request, _ ->
+                handleReadResource(request)
+            }
+            setRequestHandler<ListResourceTemplatesRequest>(Method.Defined.ResourcesTemplatesList) { _, _ ->
+                handleListResourceTemplates()
+            }
         }
     }
 
