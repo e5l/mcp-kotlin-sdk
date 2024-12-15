@@ -38,12 +38,15 @@ dependencies {
     implementation(libs.ktor.server.cio)
     implementation(libs.ktor.server.sse)
     implementation(libs.ktor.server.websockets)
+    implementation(libs.kotlin.logging)
+
 
     testImplementation(libs.kotlin.test)
     testImplementation(libs.mockk)
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.kotlinx.coroutines.debug)
+
 }
 
 tasks.test {
