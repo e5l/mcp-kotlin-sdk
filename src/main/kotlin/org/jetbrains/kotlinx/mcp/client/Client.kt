@@ -103,10 +103,6 @@ open class Client(
             )
             val result = request<InitializeResult>(message)
 
-            if (result == null) {
-                throw IllegalStateException("Server sent invalid initialize result.")
-            }
-
             if (!SUPPORTED_PROTOCOL_VERSIONS.contains(result.protocolVersion)) {
                 throw IllegalStateException(
                     "Server's protocol version is not supported: ${result.protocolVersion}"

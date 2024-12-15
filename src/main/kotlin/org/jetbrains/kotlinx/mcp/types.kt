@@ -223,7 +223,7 @@ data class CancelledNotification(
     /**
      * The ID of the request to cancel.
      *
-     * This MUST correspond to the ID of a request previously issued in the same direction.
+     * It MUST correspond to the ID of a request previously issued in the same direction.
      */
     val requestId: RequestId,
     /**
@@ -255,11 +255,11 @@ data class ClientCapabilities(
     /**
      * Experimental, non-standard capabilities that the client supports.
      */
-    val experimental: JsonObject = EmptyJsonObject,
+    val experimental: JsonObject? = EmptyJsonObject,
     /**
      * Present if the client supports sampling from an LLM.
      */
-    val sampling: JsonObject = EmptyJsonObject,
+    val sampling: JsonObject? = EmptyJsonObject,
     /**
      * Present if the client supports listing roots.
      */
@@ -316,15 +316,15 @@ data class ServerCapabilities(
     /**
      * Experimental, non-standard capabilities that the server supports.
      */
-    val experimental: JsonObject = EmptyJsonObject,
+    val experimental: JsonObject? = EmptyJsonObject,
     /**
      * Present if the client supports sampling from an LLM.
      */
-    val sampling: JsonObject = EmptyJsonObject,
+    val sampling: JsonObject? = EmptyJsonObject,
     /**
      * Present if the server supports sending log messages to the client.
      */
-    val logging: JsonObject = EmptyJsonObject,
+    val logging: JsonObject? = EmptyJsonObject,
     /**
      * Present if the server offers any prompt templates.
      */
@@ -521,7 +521,7 @@ data class Resource(
      * A description of what this resource represents.
      *
      * Clients can use this to improve the LLM's understanding of available resources.
-     * It can be thought of like a "hint" to the model.
+     * It can be thought of as a "hint" to the model.
      */
     val description: String?,
     /**
@@ -549,7 +549,7 @@ data class ResourceTemplate(
      * A description of what this template is for.
      *
      * Clients can use this to improve the LLM's understanding of available resources.
-     * It can be thought of like a "hint" to the model.
+     * It can be thought of as a "hint" to the model.
      */
     val description: String?,
     /**
@@ -601,7 +601,7 @@ class ListResourceTemplatesResult(
 ) : ServerResult, PaginatedResult
 
 /**
- * Sent from the client to the server, to read a specific resource URI.
+ * Sent from the client to the server to read a specific resource URI.
  */
 @Serializable
 data class ReadResourceRequest(
@@ -999,7 +999,7 @@ data class LoggingMessageNotification(
     override val _meta: JsonObject = EmptyJsonObject,
 ) : ServerNotification, WithMeta {
     /**
-     * A request from the client to the server, to enable or adjust logging.
+     * A request from the client to the server to enable or adjust logging.
      */
     @Serializable
     data class SetLevelRequest(
@@ -1028,7 +1028,7 @@ data class ModelHint(
 )
 
 /**
- * The server's preferences for model selection, requested of the client during sampling.
+ * The server's preferences for model selection, requested by the client during sampling.
  */
 @Suppress("CanBeParameter")
 @Serializable
@@ -1075,7 +1075,10 @@ data class SamplingMessage(
 )
 
 /**
- * A request from the server to sample an LLM via the client. The client has full discretion over which model to select. The client should also inform the user before beginning sampling, to allow them to inspect the request (human in the loop) and decide whether to approve it.
+ * A request from the server to sample an LLM via the client.
+ * The client has full discretion over which model to select.
+ * The client should also inform the user before beginning sampling to allow them to inspect the request
+ * (human in the loop) and decide whether to approve it.
  */
 @Serializable
 data class CreateMessageRequest(
@@ -1135,7 +1138,9 @@ sealed interface StopReason {
 }
 
 /**
- * The client's response to a sampling/create_message request from the server. The client should inform the user before returning the sampled message, to allow them to inspect the response (human in the loop) and decide whether to allow the server to see it.
+ * The client's response to a sampling/create_message request from the server.
+ * The client should inform the user before returning the sampled message to allow them to inspect the response
+ * (human in the loop) and decide whether to allow the server to see it.
  */
 @Serializable
 data class CreateMessageResult(
@@ -1201,7 +1206,7 @@ data class UnknownReference(
 ) : Reference
 
 /**
- * A request from the client to the server, to ask for completion options.
+ * A request from the client to the server to ask for completion options.
  */
 @Serializable
 data class CompleteRequest(

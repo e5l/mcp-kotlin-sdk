@@ -155,6 +155,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
         }
 
         setRequestHandler<PingRequest>(Method.Defined.Ping) { request, _ ->
+            @Suppress("UNCHECKED_CAST")
             EmptyRequestResult() as SendResultT
         }
     }
@@ -374,6 +375,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
             }
 
             try {
+                @Suppress("UNCHECKED_CAST")
                 result.complete(response!!.result as T)
             } catch (error: Throwable) {
                 result.completeExceptionally(error)
@@ -402,7 +404,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
                 LOGGER.trace { "Sending request message with id: $messageId" }
                 this@Protocol.transport!!.send(message)
             }
-            return result.await() as T
+            return result.await()
         } catch (cause: TimeoutCancellationException) {
             LOGGER.error { "Request timed out after ${timeout.inWholeMilliseconds}ms: ${request.method}" }
             cancel(
@@ -454,6 +456,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
                 EmptyRequestResult()
             }
 
+            @Suppress("UNCHECKED_CAST")
             response as SendResultT
         }
     }
@@ -472,6 +475,7 @@ abstract class Protocol<SendRequestT : Request, SendNotificationT : Notification
      */
     fun <T : Notification> setNotificationHandler(method: Method, handler: (notification: T) -> Deferred<Unit>) {
         this.notificationHandlers[method.value] = {
+            @Suppress("UNCHECKED_CAST")
             handler(it.fromJSON() as T)
         }
     }
