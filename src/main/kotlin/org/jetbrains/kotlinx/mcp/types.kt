@@ -35,7 +35,8 @@ typealias Cursor = String
 @Serializable
 sealed interface WithMeta {
     /**
-     * This result property is reserved by the protocol to allow clients and servers to attach additional metadata to their responses.
+     * The protocol reserves this result property
+     * to allow clients and servers to attach additional metadata to their responses.
      */
     @Suppress("PropertyName")
     val _meta: JsonObject
@@ -209,7 +210,7 @@ data class JSONRPCError(
 
 /* Cancellation */
 /**
- * This notification can be sent by either side to indicate that it is cancelling a previously-issued request.
+ * This notification can be sent by either side to indicate that it is cancelling a previously issued request.
  *
  * The request SHOULD still be in-flight, but due to communication latency, it is always possible that this notification MAY arrive after the request has already finished.
  *
@@ -245,7 +246,9 @@ data class Implementation(
 )
 
 /**
- * Capabilities a client may support. Known capabilities are defined here, in this , but this is not a closed set: any client can define its own, additional capabilities.
+ * Capabilities a client may support.
+ * Known capabilities are defined here, in this, but this is not a closed set:
+ * any client can define its own, additional capabilities.
  */
 @Serializable
 data class ClientCapabilities(
@@ -265,7 +268,7 @@ data class ClientCapabilities(
     @Serializable
     data class Roots(
         /**
-         * Whether the client supports issuing notifications for changes to the roots list.
+         * Whether the client supports issuing notifications for changes to the root list.
          */
         val listChanged: Boolean?,
     )
@@ -365,7 +368,7 @@ data class ServerCapabilities(
 }
 
 /**
- * After receiving an initialize request from the client, the server sends this response.
+ * After receiving an initialized request from the client, the server sends this response.
  */
 @Serializable
 data class InitializeResult(
@@ -403,7 +406,7 @@ sealed interface ProgressBase {
     val progress: Int
 
     /**
-     * Total number of items to process (or total progress required), if known.
+     * Total number of items to a process (or total progress required), if known.
      */
     val total: Double?
 }
@@ -417,7 +420,7 @@ open class Progress(
     override val progress: Int,
 
     /**
-     * Total number of items to process (or total progress required), if known.
+     * Total number of items to a process (or total progress required), if known.
      */
     override val total: Double?,
 ) : ProgressBase
@@ -429,10 +432,12 @@ open class Progress(
 data class ProgressNotification(
     override val progress: Int,
     /**
-     * The progress token which was given in the initial request, used to associate this notification with the request that is proceeding.
+     * The progress token,
+     * which was given in the initial request,
+     * used to associate this notification with the request that is proceeding.
      */
     val progressToken: ProgressToken,
-    val _meta: JsonObject = EmptyJsonObject,
+    @Suppress("PropertyName") val _meta: JsonObject = EmptyJsonObject,
     override val total: Double?,
 ) : ClientNotification, ServerNotification, ProgressBase {
     override val method: Method = Method.Defined.NotificationsProgress
@@ -509,13 +514,14 @@ data class Resource(
     /**
      * A human-readable name for this resource.
      *
-     * This can be used by clients to populate UI elements.
+     * Clients can use this to populate UI elements.
      */
     val name: String,
     /**
      * A description of what this resource represents.
      *
-     * This can be used by clients to improve the LLM's understanding of available resources. It can be thought of like a "hint" to the model.
+     * Clients can use this to improve the LLM's understanding of available resources.
+     * It can be thought of like a "hint" to the model.
      */
     val description: String?,
     /**
@@ -536,13 +542,14 @@ data class ResourceTemplate(
     /**
      * A human-readable name for the type of resource this template refers to.
      *
-     * This can be used by clients to populate UI elements.
+     * Clients can use this to populate UI elements.
      */
     val name: String,
     /**
      * A description of what this template is for.
      *
-     * This can be used by clients to improve the LLM's understanding of available resources. It can be thought of like a "hint" to the model.
+     * Clients can use this to improve the LLM's understanding of available resources.
+     * It can be thought of like a "hint" to the model.
      */
     val description: String?,
     /**
@@ -614,7 +621,9 @@ class ReadResourceResult(
 ) : ServerResult
 
 /**
- * An optional notification from the server to the client, informing it that the list of resources it can read from has changed. This may be issued by servers without any previous subscription from the client.
+ * An optional notification from the server to the client,
+ * informing it that the list of resources it can read from has changed.
+ * Servers may issue this without any previous subscription from the client.
  */
 @Serializable
 class ResourceListChangedNotification : ServerNotification {
@@ -841,7 +850,8 @@ class GetPromptResult(
 ) : ServerResult
 
 /**
- * An optional notification from the server to the client, informing it that the list of prompts it offers has changed. This may be issued by servers without any previous subscription from the client.
+ * An optional notification from the server to the client, informing it that the list of prompts it offers has changed.
+ * Servers may issue this without any previous subscription from the client.
  */
 @Serializable
 class PromptListChangedNotification : ServerNotification {
@@ -939,7 +949,8 @@ data class CallToolRequest(
 }
 
 /**
- * An optional notification from the server to the client, informing it that the list of tools it offers has changed. This may be issued by servers without any previous subscription from the client.
+ * An optional notification from the server to the client, informing it that the list of tools it offers has changed.
+ * Servers may issue this without any previous subscription from the client.
  */
 @Serializable
 class ToolListChangedNotification : ServerNotification {
@@ -965,7 +976,9 @@ enum class LoggingLevel {
 }
 
 /**
- * org.jetbrains.kotlinx.mcp.Notification of a log message passed from server to client. If no logging/setLevel request has been sent from the client, the server MAY decide which messages to send automatically.
+ * org.jetbrains.kotlinx.mcp.Notification of a log message passed from server to client.
+ * If no logging level request has been sent from the client,
+ * the server MAY decide which messages to send automatically.
  */
 @Serializable
 data class LoggingMessageNotification(
@@ -1068,7 +1081,7 @@ data class SamplingMessage(
 data class CreateMessageRequest(
     val messages: List<SamplingMessage>,
     /**
-     * An optional system prompt the server wants to use for sampling. The client MAY modify or omit this prompt.
+     * An optional system prompt the server wants to use it for sampling. The client MAY modify or omit this prompt.
      */
     val systemPrompt: String?,
     /**
@@ -1226,7 +1239,7 @@ data class CompleteResult(
     @Serializable
     class Completion(
         /**
-         * An List of completion values. Must not exceed 100 items.
+         * A list of completion values. Must not exceed 100 items.
          */
         val values: List<String>,
         /**
