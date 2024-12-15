@@ -1,34 +1,34 @@
-package server
+package org.jetbrains.kotlinx.mcp.server
 
-import ClientCapabilities
-import CreateMessageRequest
-import CreateMessageResult
-import EmptyJsonObject
-import EmptyRequestResult
-import Implementation
-import InitializeRequest
-import InitializeResult
-import InitializedNotification
-import LATEST_PROTOCOL_VERSION
-import ListRootsRequest
-import ListRootsResult
-import LoggingMessageNotification
-import Method
-import PingRequest
-import PromptListChangedNotification
-import ResourceListChangedNotification
-import ResourceUpdatedNotification
-import SUPPORTED_PROTOCOL_VERSIONS
-import ServerCapabilities
-import ServerNotification
-import ServerRequest
-import ServerResult
-import ToolListChangedNotification
+import org.jetbrains.kotlinx.mcp.ClientCapabilities
+import org.jetbrains.kotlinx.mcp.CreateMessageRequest
+import org.jetbrains.kotlinx.mcp.CreateMessageResult
+import org.jetbrains.kotlinx.mcp.EmptyJsonObject
+import org.jetbrains.kotlinx.mcp.EmptyRequestResult
+import org.jetbrains.kotlinx.mcp.Implementation
+import org.jetbrains.kotlinx.mcp.InitializeRequest
+import org.jetbrains.kotlinx.mcp.InitializeResult
+import org.jetbrains.kotlinx.mcp.InitializedNotification
+import org.jetbrains.kotlinx.mcp.LATEST_PROTOCOL_VERSION
+import org.jetbrains.kotlinx.mcp.ListRootsRequest
+import org.jetbrains.kotlinx.mcp.ListRootsResult
+import org.jetbrains.kotlinx.mcp.LoggingMessageNotification
+import org.jetbrains.kotlinx.mcp.Method
+import org.jetbrains.kotlinx.mcp.PingRequest
+import org.jetbrains.kotlinx.mcp.PromptListChangedNotification
+import org.jetbrains.kotlinx.mcp.ResourceListChangedNotification
+import org.jetbrains.kotlinx.mcp.ResourceUpdatedNotification
+import org.jetbrains.kotlinx.mcp.SUPPORTED_PROTOCOL_VERSIONS
+import org.jetbrains.kotlinx.mcp.ServerCapabilities
+import org.jetbrains.kotlinx.mcp.ServerNotification
+import org.jetbrains.kotlinx.mcp.ServerRequest
+import org.jetbrains.kotlinx.mcp.ServerResult
+import org.jetbrains.kotlinx.mcp.ToolListChangedNotification
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.serialization.json.JsonObject
-import shared.Protocol
-import shared.ProtocolOptions
-import shared.RequestOptions
+import org.jetbrains.kotlinx.mcp.shared.Protocol
+import org.jetbrains.kotlinx.mcp.shared.ProtocolOptions
+import org.jetbrains.kotlinx.mcp.shared.RequestOptions
 
 class ServerOptions(
     val capabilities: ServerCapabilities,
@@ -40,16 +40,16 @@ class ServerOptions(
  *
  * This server automatically responds to the initialization flow as initiated by the client.
  *
- * To use with custom types, extend the base Request/Notification/Result types and pass them as type parameters:
+ * To use with custom types, extend the base org.jetbrains.kotlinx.mcp.Request/org.jetbrains.kotlinx.mcp.Notification/Result types and pass them as type parameters:
  *
  * ```kotlin
  * // Custom data classes
  *
  * // Create typed server
  * class CustomServer(
- *   serverInfo: Implementation,
+ *   serverInfo: org.jetbrains.kotlinx.mcp.Implementation,
  *   options: ServerOptions
- * ) : Server<CustomRequest, CustomNotification, CustomResult>(serverInfo, options)
+ * ) : Server<org.jetbrains.kotlinx.mcp.CustomRequest, CustomNotification, CustomResult>(serverInfo, options)
  * ```
  */
 open class Server(
@@ -222,7 +222,7 @@ open class Server(
         params: CreateMessageRequest,
         options: RequestOptions? = null
     ): CreateMessageResult {
-        // Assuming CreateMessageResultSchema not needed if we can just deserialize into CreateMessageResult
+        // Assuming CreateMessageResultSchema not needed if we can just deserialize into org.jetbrains.kotlinx.mcp.CreateMessageResult
         return request<CreateMessageResult>(params, options)
     }
 

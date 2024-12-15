@@ -1,8 +1,10 @@
 package client
 
-import Implementation
-import ListToolsResult
+import org.jetbrains.kotlinx.mcp.Implementation
+import org.jetbrains.kotlinx.mcp.ListToolsResult
 import kotlinx.coroutines.test.runTest
+import org.jetbrains.kotlinx.mcp.client.Client
+import org.jetbrains.kotlinx.mcp.client.StdioClientTransport
 import org.junit.jupiter.api.Test
 import java.net.Socket
 

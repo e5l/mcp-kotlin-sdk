@@ -1,21 +1,24 @@
-package client
+package org.jetbrains.kotlinx.mcp.client
 
-import Implementation
+import org.jetbrains.kotlinx.mcp.Implementation
 import io.ktor.client.HttpClient
 import io.ktor.client.request.HttpRequestBuilder
-import shared.IMPLEMENTATION_NAME
+import org.jetbrains.kotlinx.mcp.shared.IMPLEMENTATION_NAME
 import shared.LIB_VERSION
+import kotlin.time.Duration
 
-fun HttpClient.mcpWebSocketTransport(
+fun HttpClient.mcpSseTransport(
     urlString: String? = null,
+    reconnectionTime: Duration? = null,
     requestBuilder: HttpRequestBuilder.() -> Unit = {},
-) = WebSocketMcpClientTransport(this, urlString, requestBuilder)
+) = SSEClientTransport(this, urlString, reconnectionTime, requestBuilder)
 
-suspend fun HttpClient.mcpWebSocket(
+suspend fun HttpClient.mcpSse(
     urlString: String? = null,
+    reconnectionTime: Duration? = null,
     requestBuilder: HttpRequestBuilder.() -> Unit = {},
 ): Client {
-    val transport = mcpWebSocketTransport(urlString, requestBuilder)
+    val transport = mcpSseTransport(urlString, reconnectionTime, requestBuilder)
     val client = Client(
         Implementation(
             name = IMPLEMENTATION_NAME,

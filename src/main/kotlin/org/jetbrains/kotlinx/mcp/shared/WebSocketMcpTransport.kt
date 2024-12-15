@@ -1,13 +1,6 @@
-package shared
+package org.jetbrains.kotlinx.mcp.shared
 
-import JSONRPCMessage
-import io.ktor.client.HttpClient
-import io.ktor.client.plugins.websocket.ClientWebSocketSession
-import io.ktor.client.plugins.websocket.webSocketSession
-import io.ktor.client.request.HttpRequestBuilder
-import io.ktor.client.request.header
-import io.ktor.http.HttpHeaders
-import io.ktor.server.engine.internal.ClosedChannelException
+import org.jetbrains.kotlinx.mcp.JSONRPCMessage
 import io.ktor.websocket.Frame
 import io.ktor.websocket.WebSocketSession
 import io.ktor.websocket.close
@@ -20,10 +13,7 @@ import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
-import shared.McpJson
-import shared.Transport
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.properties.Delegates
 
 const val MCP_SUBPROTOCOL = "mcp"
 

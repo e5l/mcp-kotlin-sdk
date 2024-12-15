@@ -1,6 +1,6 @@
-package client
+package org.jetbrains.kotlinx.mcp.client
 
-import JSONRPCMessage
+import org.jetbrains.kotlinx.mcp.JSONRPCMessage
 import io.ktor.client.*
 import io.ktor.client.plugins.sse.*
 import io.ktor.client.request.*
@@ -8,8 +8,8 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.encodeToString
-import shared.McpJson
-import shared.Transport
+import org.jetbrains.kotlinx.mcp.shared.McpJson
+import org.jetbrains.kotlinx.mcp.shared.Transport
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.properties.Delegates
 import kotlin.time.Duration
@@ -18,7 +18,7 @@ import kotlin.time.Duration
  * Client transport for SSE: this will connect to a server using Server-Sent Events for receiving
  * messages and make separate POST requests for sending messages.
  */
-class SseMcpClientTransport(
+class SSEClientTransport(
     private val client: HttpClient,
     private val urlString: String?,
     private val reconnectionTime: Duration? = null,

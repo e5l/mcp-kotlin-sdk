@@ -1,11 +1,11 @@
 package client
 
-import InitializedNotification
-import JSONRPCMessage
-import PingRequest
+import org.jetbrains.kotlinx.mcp.InitializedNotification
+import org.jetbrains.kotlinx.mcp.JSONRPCMessage
+import org.jetbrains.kotlinx.mcp.PingRequest
 import kotlinx.coroutines.CompletableDeferred
-import shared.Transport
-import toJSON
+import org.jetbrains.kotlinx.mcp.shared.Transport
+import org.jetbrains.kotlinx.mcp.toJSON
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue

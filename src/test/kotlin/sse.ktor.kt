@@ -10,11 +10,13 @@ import io.ktor.server.sse.sse
 import io.ktor.util.AttributeKey
 import io.ktor.util.Attributes
 import kotlinx.coroutines.CompletableDeferred
-import server.SESSION_ID_PARAM
-import server.SSEServerTransport
-import server.Server
-import server.ServerOptions
-import shared.IMPLEMENTATION_NAME
+import org.jetbrains.kotlinx.mcp.Implementation
+import org.jetbrains.kotlinx.mcp.ServerCapabilities
+import org.jetbrains.kotlinx.mcp.server.SESSION_ID_PARAM
+import org.jetbrains.kotlinx.mcp.server.SSEServerTransport
+import org.jetbrains.kotlinx.mcp.server.Server
+import org.jetbrains.kotlinx.mcp.server.ServerOptions
+import org.jetbrains.kotlinx.mcp.shared.IMPLEMENTATION_NAME
 import shared.LIB_VERSION
 
 typealias IncomingHandler = suspend RoutingContext.(forward: suspend () -> Unit) -> Unit

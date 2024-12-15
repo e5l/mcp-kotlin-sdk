@@ -1,9 +1,11 @@
 package shared
 
-import JSONRPCMessage
-import JSONRPCNotification
+import org.jetbrains.kotlinx.mcp.JSONRPCMessage
+import org.jetbrains.kotlinx.mcp.JSONRPCNotification
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.jetbrains.kotlinx.mcp.shared.ReadBuffer
+import org.jetbrains.kotlinx.mcp.shared.serializeMessage
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test

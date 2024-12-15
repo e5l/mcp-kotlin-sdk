@@ -1,46 +1,46 @@
-package client
+package org.jetbrains.kotlinx.mcp.client
 
-import CallToolRequest
-import CallToolResult
-import CallToolResultBase
-import ClientCapabilities
-import ClientNotification
-import ClientRequest
-import ClientResult
-import CompatibilityCallToolResult
-import CompleteRequest
-import CompleteResult
-import EmptyRequestResult
-import GetPromptRequest
-import GetPromptResult
-import Implementation
-import InitializeRequest
-import InitializeResult
-import InitializedNotification
-import LATEST_PROTOCOL_VERSION
-import ListPromptsRequest
-import ListPromptsResult
-import ListResourceTemplatesRequest
-import ListResourceTemplatesResult
-import ListResourcesRequest
-import ListResourcesResult
-import ListToolsRequest
-import ListToolsResult
-import LoggingLevel
-import LoggingMessageNotification.SetLevelRequest
-import Method
-import PingRequest
-import ReadResourceRequest
-import ReadResourceResult
-import RootsListChangedNotification
-import SUPPORTED_PROTOCOL_VERSIONS
-import ServerCapabilities
-import SubscribeRequest
-import UnsubscribeRequest
-import shared.Protocol
-import shared.ProtocolOptions
-import shared.RequestOptions
-import shared.Transport
+import org.jetbrains.kotlinx.mcp.CallToolRequest
+import org.jetbrains.kotlinx.mcp.CallToolResult
+import org.jetbrains.kotlinx.mcp.CallToolResultBase
+import org.jetbrains.kotlinx.mcp.ClientCapabilities
+import org.jetbrains.kotlinx.mcp.ClientNotification
+import org.jetbrains.kotlinx.mcp.ClientRequest
+import org.jetbrains.kotlinx.mcp.ClientResult
+import org.jetbrains.kotlinx.mcp.CompatibilityCallToolResult
+import org.jetbrains.kotlinx.mcp.CompleteRequest
+import org.jetbrains.kotlinx.mcp.CompleteResult
+import org.jetbrains.kotlinx.mcp.EmptyRequestResult
+import org.jetbrains.kotlinx.mcp.GetPromptRequest
+import org.jetbrains.kotlinx.mcp.GetPromptResult
+import org.jetbrains.kotlinx.mcp.Implementation
+import org.jetbrains.kotlinx.mcp.InitializeRequest
+import org.jetbrains.kotlinx.mcp.InitializeResult
+import org.jetbrains.kotlinx.mcp.InitializedNotification
+import org.jetbrains.kotlinx.mcp.LATEST_PROTOCOL_VERSION
+import org.jetbrains.kotlinx.mcp.ListPromptsRequest
+import org.jetbrains.kotlinx.mcp.ListPromptsResult
+import org.jetbrains.kotlinx.mcp.ListResourceTemplatesRequest
+import org.jetbrains.kotlinx.mcp.ListResourceTemplatesResult
+import org.jetbrains.kotlinx.mcp.ListResourcesRequest
+import org.jetbrains.kotlinx.mcp.ListResourcesResult
+import org.jetbrains.kotlinx.mcp.ListToolsRequest
+import org.jetbrains.kotlinx.mcp.ListToolsResult
+import org.jetbrains.kotlinx.mcp.LoggingLevel
+import org.jetbrains.kotlinx.mcp.LoggingMessageNotification.SetLevelRequest
+import org.jetbrains.kotlinx.mcp.Method
+import org.jetbrains.kotlinx.mcp.PingRequest
+import org.jetbrains.kotlinx.mcp.ReadResourceRequest
+import org.jetbrains.kotlinx.mcp.ReadResourceResult
+import org.jetbrains.kotlinx.mcp.RootsListChangedNotification
+import org.jetbrains.kotlinx.mcp.SUPPORTED_PROTOCOL_VERSIONS
+import org.jetbrains.kotlinx.mcp.ServerCapabilities
+import org.jetbrains.kotlinx.mcp.SubscribeRequest
+import org.jetbrains.kotlinx.mcp.UnsubscribeRequest
+import org.jetbrains.kotlinx.mcp.shared.Protocol
+import org.jetbrains.kotlinx.mcp.shared.ProtocolOptions
+import org.jetbrains.kotlinx.mcp.shared.RequestOptions
+import org.jetbrains.kotlinx.mcp.shared.Transport
 
 class ClientOptions(
     /**
@@ -62,9 +62,9 @@ class ClientOptions(
  * // Define custom data classes/types for requests, notifications, and results.
  *
  * class CustomClient(
- *     clientInfo: Implementation,
+ *     clientInfo: org.jetbrains.kotlinx.mcp.Implementation,
  *     options: ClientOptions
- * ) : Client<CustomRequest, CustomNotification, CustomResult>(clientInfo, options)
+ * ) : Client<org.jetbrains.kotlinx.mcp.CustomRequest, CustomNotification, CustomResult>(clientInfo, options)
  * ```
  */
 open class Client(

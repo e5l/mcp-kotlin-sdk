@@ -1,11 +1,13 @@
 @file:Suppress("unused", "EnumEntryName")
 
+package org.jetbrains.kotlinx.mcp
+
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
-import shared.McpJson
+import org.jetbrains.kotlinx.mcp.shared.McpJson
 import java.util.concurrent.atomic.AtomicLong
 
 const val LATEST_PROTOCOL_VERSION = "2024-11-05"
@@ -406,7 +408,7 @@ sealed interface ProgressBase {
     val total: Double?
 }
 
-/* Progress notifications */
+/* org.jetbrains.kotlinx.mcp.Progress notifications */
 @Serializable
 open class Progress(
     /**
@@ -963,7 +965,7 @@ enum class LoggingLevel {
 }
 
 /**
- * Notification of a log message passed from server to client. If no logging/setLevel request has been sent from the client, the server MAY decide which messages to send automatically.
+ * org.jetbrains.kotlinx.mcp.Notification of a log message passed from server to client. If no logging/setLevel request has been sent from the client, the server MAY decide which messages to send automatically.
  */
 @Serializable
 data class LoggingMessageNotification(

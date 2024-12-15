@@ -1,5 +1,7 @@
-import client.Client
-import client.StdioClientTransport
+package org.jetbrains.kotlinx.mcp
+
+import org.jetbrains.kotlinx.mcp.client.Client
+import org.jetbrains.kotlinx.mcp.client.StdioClientTransport
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.cio.*
@@ -14,11 +16,11 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
-import server.MCP
-import server.SSEServerTransport
-import server.Server
-import server.ServerOptions
-import server.StdioServerTransport
+import org.jetbrains.kotlinx.mcp.server.MCP
+import org.jetbrains.kotlinx.mcp.server.SSEServerTransport
+import org.jetbrains.kotlinx.mcp.server.Server
+import org.jetbrains.kotlinx.mcp.server.ServerOptions
+import org.jetbrains.kotlinx.mcp.server.StdioServerTransport
 
 fun main(args: Array<String>) {
     if (args.isEmpty())
@@ -76,13 +78,13 @@ private fun runDemo() {
             // Tools capability check
             serverCapabilities?.tools?.let {
                 try {
-//                    val terminal = client.callTool(CallToolRequest("execute_terminal_command", buildJsonObject { put("command", "ls") }))
+//                    val terminal = client.org.jetbrains.kotlinx.mcp.callTool(org.jetbrains.kotlinx.mcp.CallToolRequest("execute_terminal_command", buildJsonObject { put("command", "ls") }))
 //                    System.err.println(terminal?.content?.first())
 
                     val tools = client.listTools()
                     System.err.println(tools?.tools?.joinToString(", ") { tool -> tool.name })
 
-//                    tools?.tools?.reversed()?.find { it.name == "toggle_debugger_breakpoint" }?.let { callTool(client, it) }
+//                    tools?.tools?.reversed()?.find { it.name == "toggle_debugger_breakpoint" }?.let { org.jetbrains.kotlinx.mcp.callTool(client, it) }
 
                     tools?.tools?.reversed()?.forEachIndexed { i, tool ->
                         System.err.println("$i out of ${tools.tools.size}: ${tool.name}")
@@ -195,7 +197,7 @@ private fun runServer() {
     server.setRequestHandler<ListToolsRequest>(Method.Defined.ToolsList) { request, _ ->
         val tools = listOf(
             Tool(
-                name = "Test Tool",
+                name = "Test org.jetbrains.kotlinx.mcp.Tool",
                 description = "A test tool",
                 inputSchema = Tool.Input(),
             )

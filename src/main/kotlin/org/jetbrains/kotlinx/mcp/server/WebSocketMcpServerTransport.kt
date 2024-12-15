@@ -1,9 +1,9 @@
-package server
+package org.jetbrains.kotlinx.mcp.server
 
 import io.ktor.http.*
 import io.ktor.server.websocket.*
-import shared.MCP_SUBPROTOCOL
-import shared.WebSocketMcpTransport
+import org.jetbrains.kotlinx.mcp.shared.MCP_SUBPROTOCOL
+import org.jetbrains.kotlinx.mcp.shared.WebSocketMcpTransport
 
 class WebSocketMcpServerTransport(
     override val session: WebSocketServerSession,

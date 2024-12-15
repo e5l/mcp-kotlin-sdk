@@ -1,11 +1,11 @@
-package server
+package org.jetbrains.kotlinx.mcp.server
 
-import JSONRPCMessage
+import org.jetbrains.kotlinx.mcp.JSONRPCMessage
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import shared.ReadBuffer
-import shared.Transport
-import shared.serializeMessage
+import org.jetbrains.kotlinx.mcp.shared.ReadBuffer
+import org.jetbrains.kotlinx.mcp.shared.Transport
+import org.jetbrains.kotlinx.mcp.shared.serializeMessage
 import java.io.BufferedInputStream
 import java.io.PrintStream
 import kotlin.coroutines.CoroutineContext

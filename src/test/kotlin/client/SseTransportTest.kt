@@ -6,11 +6,11 @@ import io.ktor.server.application.*
 import io.ktor.server.cio.*
 import io.ktor.server.engine.*
 import io.ktor.server.routing.*
-import io.ktor.server.sse.sse
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.runTest
 import mcpSse
 import mcpSseTransport
+import org.jetbrains.kotlinx.mcp.client.mcpSseTransport
 import org.junit.jupiter.api.Test
 
 private const val PORT = 8080
