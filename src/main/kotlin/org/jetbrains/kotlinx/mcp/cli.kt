@@ -77,8 +77,8 @@ private fun runDemo() {
             // Tools capability check
             serverCapabilities?.tools?.let {
                 try {
-//                    val terminal = client.org.jetbrains.kotlinx.mcp.callTool(org.jetbrains.kotlinx.mcp.CallToolRequest("execute_terminal_command", buildJsonObject { put("command", "ls") }))
-//                    System.err.println(terminal?.content?.first())
+                    val terminal = client.callTool("execute_terminal_command", mapOf("command" to "ls"))
+                    System.err.println(terminal?.content?.first())
 
                     val tools = client.listTools()
                     System.err.println(tools?.tools?.joinToString(", ") { tool -> tool.name })
