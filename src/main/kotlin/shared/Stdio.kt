@@ -6,7 +6,6 @@ import kotlinx.io.Buffer
 import kotlinx.io.indexOf
 import kotlinx.io.readString
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 
 /**
  * Buffers a continuous stdio stream into discrete JSON-RPC messages.
@@ -47,11 +46,11 @@ class ReadBuffer {
     }
 }
 
-fun deserializeMessage(line: String): JSONRPCMessage {
+internal fun deserializeMessage(line: String): JSONRPCMessage {
     return McpJson.decodeFromString<JSONRPCMessage>(line)
 }
 
-fun serializeMessage(message: JSONRPCMessage): String {
+internal fun serializeMessage(message: JSONRPCMessage): String {
     return McpJson.encodeToString(message) + "\n"
 }
 
