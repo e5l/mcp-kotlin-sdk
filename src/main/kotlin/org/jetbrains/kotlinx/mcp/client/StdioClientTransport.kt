@@ -1,15 +1,16 @@
 package org.jetbrains.kotlinx.mcp.client
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.jetbrains.kotlinx.mcp.JSONRPCMessage
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.consumeEach
-import kotlinx.io.IOException
 import org.jetbrains.kotlinx.mcp.shared.ReadBuffer
 import org.jetbrains.kotlinx.mcp.shared.Transport
 import org.jetbrains.kotlinx.mcp.shared.serializeMessage
 import java.io.InputStream
 import java.io.OutputStream
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.CoroutineContext
 import kotlin.text.Charsets.UTF_8
 
@@ -26,10 +27,13 @@ class StdioClientTransport(
     private val input: InputStream,
     private val output: OutputStream
 ) : Transport {
-    private val jsonRpcContext: CoroutineContext = Dispatchers.IO
-    private val scope = CoroutineScope(jsonRpcContext + SupervisorJob())
+    private val logger = KotlinLogging.logger {}
+    private val ioCoroutineContext: CoroutineContext = Dispatchers.IO
+    private val scope by lazy {
+        CoroutineScope(ioCoroutineContext + SupervisorJob())
+    }
     private var job: Job? = null
-    private var started = false
+    private var initialized = AtomicBoolean(false)
     private val sendChannel = Channel<JSONRPCMessage>(Channel.UNLIMITED)
     private val readBuffer = ReadBuffer()
 
@@ -38,15 +42,17 @@ class StdioClientTransport(
     override var onMessage: (suspend ((JSONRPCMessage) -> Unit))? = null
 
     override suspend fun start() {
-        if (started) {
-            throw IllegalStateException("StdioClientTransport already started!")
+        if (!initialized.compareAndSet(false, true)) {
+            error("StdioClientTransport already started!")
         }
-        started = true
+
+        logger.debug { "Starting StdioClientTransport..." }
 
         val outputStream = output.bufferedWriter(UTF_8)
 
-        job = scope.launch {
+        job = scope.launch(CoroutineName("StdioClientTransport.IO#${hashCode()}")) {
             val readJob = launch {
+                logger.debug { "Read coroutine started." }
                 try {
                     val buffer = ByteArray(8192)
                     while (isActive) {
@@ -57,21 +63,18 @@ class StdioClientTransport(
                             processReadBuffer()
                         }
                     }
-                } catch (e: Throwable) {
-                    when (e) { // TODO
-                        is IOException -> {}
-                        is CancellationException -> {}
-                        else -> {
-                            onError?.invoke(e)
-                            System.err.println(e) // todo()
-                        }
-                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    onError?.invoke(e)
+                    logger.error(e) { "Error reading from input stream" }
                 } finally {
                     input.close()
                 }
             }
 
             val writeJob = launch {
+                logger.debug { "Write coroutine started." }
                 try {
                     sendChannel.consumeEach { message ->
                         val json = serializeMessage(message)
@@ -81,10 +84,10 @@ class StdioClientTransport(
                 } catch (e: Throwable) {
                     if (isActive) {
                         onError?.invoke(e)
-                        System.err.println(e) // todo()
+                        logger.error(e) { "Error writing to output stream" }
                     }
                 } finally {
-                    outputStream.close()
+                    output.close()
                 }
             }
 
@@ -95,19 +98,22 @@ class StdioClientTransport(
     }
 
     override suspend fun send(message: JSONRPCMessage) {
-        if (!started) {
-            throw IllegalStateException("Transport not started")
+        if (!initialized.get()) {
+            error("Transport not started")
         }
 
         sendChannel.send(message)
     }
 
     override suspend fun close() {
+        if (!initialized.compareAndSet(true, false)) {
+            error("Transport is already closed")
+        }
+        job?.cancelAndJoin()
         input.close()
         output.close()
         readBuffer.clear()
         sendChannel.close()
-        job?.cancelAndJoin()
         onClose?.invoke()
     }
 
@@ -118,6 +124,7 @@ class StdioClientTransport(
                 onMessage?.invoke(msg)
             } catch (e: Throwable) {
                 onError?.invoke(e)
+                logger.error(e) { "Error processing message." }
             }
         }
     }
