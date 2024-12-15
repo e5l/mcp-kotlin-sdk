@@ -1,6 +1,9 @@
+import org.jetbrains.dokka.gradle.engine.parameters.VisibilityModifier
+
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.dokka)
 }
 
 group = "org.jetbrains.mcp"
@@ -47,6 +50,22 @@ abstract class GenerateLibVersionTask @Inject constructor(
 
             """.trimIndent()
         )
+    }
+}
+
+dokka {
+    moduleName.set("MCP Kotlin SDK")
+
+    dokkaSourceSets.main {
+        sourceLink {
+            localDirectory.set(file("src/main/kotlin"))
+            remoteUrl("https://github.com/e5l/mcp-kotlin-sdk")
+            remoteLineSuffix.set("#L")
+            documentedVisibilities(VisibilityModifier.Public)
+        }
+    }
+    dokkaPublications.html {
+        outputDirectory.set(project.layout.projectDirectory.dir("docs"))
     }
 }
 
