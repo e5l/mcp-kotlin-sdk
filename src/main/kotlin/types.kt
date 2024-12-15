@@ -576,7 +576,7 @@ class ListResourcesResult(
 @Serializable
 data class ListResourceTemplatesRequest(
     override val cursor: Cursor?,
-    override val _meta: JsonObject
+    override val _meta: JsonObject = EmptyJsonObject
 ) : ClientRequest, PaginatedRequest {
     override val method: Method = Method.Defined.ResourcesTemplatesList
 }
@@ -586,8 +586,8 @@ data class ListResourceTemplatesRequest(
  */
 @Serializable
 class ListResourceTemplatesResult(
-    val resourceTemplates: Array<ResourceTemplate>,
-    override val nextCursor: Cursor?,
+    val resourceTemplates: List<ResourceTemplate>,
+    override val nextCursor: Cursor? = null,
     override val _meta: JsonObject = EmptyJsonObject,
 ) : ServerResult, PaginatedResult
 
