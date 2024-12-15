@@ -1,5 +1,6 @@
 package org.jetbrains.kotlinx.mcp.server
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.jetbrains.kotlinx.mcp.CallToolRequest
 import org.jetbrains.kotlinx.mcp.CallToolResult
 import org.jetbrains.kotlinx.mcp.ClientCapabilities
@@ -48,6 +49,8 @@ import org.jetbrains.kotlinx.mcp.shared.Protocol
 import org.jetbrains.kotlinx.mcp.shared.ProtocolOptions
 import org.jetbrains.kotlinx.mcp.shared.RequestOptions
 
+private val logger = KotlinLogging.logger {}
+
 class ServerOptions(
     val capabilities: ServerCapabilities,
     enforceStrictCapabilities: Boolean = true,
@@ -90,6 +93,7 @@ open class Server(
     var onInitialized: (() -> Unit)? = null
 
     init {
+        logger.debug { "Initializing MCP server with capabilities: $capabilities" }
         // Core protocol handlers
         setRequestHandler<InitializeRequest>(Method.Defined.Initialize) { request, _ ->
             handleInitialize(request)
@@ -128,6 +132,7 @@ open class Server(
     }
 
     override fun onclose() {
+        logger.info { "Server connection closing" }
         onCloseCallback?.invoke()
     }
 
@@ -141,8 +146,10 @@ open class Server(
         handler: suspend (CallToolRequest) -> CallToolResult
     ) {
         if (capabilities.tools == null) {
+            logger.error { "Failed to add tool '$name': Server does not support tools capability" }
             throw IllegalStateException("Server does not support tools capability. Enable it in ServerOptions.")
         }
+        logger.info { "Registering tool: $name" }
         tools[name] = RegisteredTool(Tool(name, description, inputSchema), handler)
     }
 
@@ -151,9 +158,12 @@ open class Server(
      */
     fun addTools(toolsToAdd: List<RegisteredTool>) {
         if (capabilities.tools == null) {
+            logger.error { "Failed to add tools: Server does not support tools capability" }
             throw IllegalStateException("Server does not support tools capability.")
         }
+        logger.info { "Registering ${toolsToAdd.size} tools" }
         for (rt in toolsToAdd) {
+            logger.debug { "Registering tool: ${rt.tool.name}" }
             tools[rt.tool.name] = rt
         }
     }
@@ -163,8 +173,10 @@ open class Server(
      */
     fun addPrompt(prompt: Prompt, promptProvider: suspend (GetPromptRequest) -> GetPromptResult) {
         if (capabilities.prompts == null) {
+            logger.error { "Failed to add prompt '${prompt.name}': Server does not support prompts capability" }
             throw IllegalStateException("Server does not support prompts capability.")
         }
+        logger.info { "Registering prompt: ${prompt.name}" }
         prompts[prompt.name] = RegisteredPrompt(prompt, promptProvider)
     }
 
@@ -186,9 +198,12 @@ open class Server(
      */
     fun addPrompts(promptsToAdd: List<RegisteredPrompt>) {
         if (capabilities.prompts == null) {
+            logger.error { "Failed to add prompts: Server does not support prompts capability" }
             throw IllegalStateException("Server does not support prompts capability.")
         }
+        logger.info { "Registering ${promptsToAdd.size} prompts" }
         for (rp in promptsToAdd) {
+            logger.debug { "Registering prompt: ${rp.prompt.name}" }
             prompts[rp.prompt.name] = rp
         }
     }
@@ -204,8 +219,10 @@ open class Server(
         readHandler: suspend (ReadResourceRequest) -> ReadResourceResult
     ) {
         if (capabilities.resources == null) {
+            logger.error { "Failed to add resource '$name': Server does not support resources capability" }
             throw IllegalStateException("Server does not support resources capability.")
         }
+        logger.info { "Registering resource: $name ($uri)" }
         resources[uri] = RegisteredResource(Resource(uri, name, description, mimeType), readHandler)
     }
 
@@ -214,9 +231,12 @@ open class Server(
      */
     fun addResources(resourcesToAdd: List<RegisteredResource>) {
         if (capabilities.resources == null) {
+            logger.error { "Failed to add resources: Server does not support resources capability" }
             throw IllegalStateException("Server does not support resources capability.")
         }
+        logger.info { "Registering ${resourcesToAdd.size} resources" }
         for (r in resourcesToAdd) {
+            logger.debug { "Registering resource: ${r.resource.name} (${r.resource.uri})" }
             resources[r.resource.uri] = r
         }
     }
@@ -224,6 +244,7 @@ open class Server(
     // --- Internal Handlers ---
 
     private suspend fun handleInitialize(request: InitializeRequest): InitializeResult {
+        logger.info { "Handling initialize request from client ${request.clientInfo}" }
         clientCapabilities = request.capabilities
         clientVersion = request.clientInfo
 
@@ -231,6 +252,7 @@ open class Server(
         val protocolVersion = if (SUPPORTED_PROTOCOL_VERSIONS.contains(requestedVersion)) {
             requestedVersion
         } else {
+            logger.warn { "Client requested unsupported protocol version $requestedVersion, falling back to $LATEST_PROTOCOL_VERSION" }
             LATEST_PROTOCOL_VERSION
         }
 
@@ -247,28 +269,43 @@ open class Server(
     }
 
     private suspend fun handleCallTool(request: CallToolRequest): CallToolResult {
+        logger.debug { "Handling tool call request for tool: ${request.name}" }
         val tool = tools[request.name]
-            ?: throw IllegalArgumentException("Tool not found: ${request.name}")
+            ?: run {
+                logger.error { "Tool not found: ${request.name}" }
+                throw IllegalArgumentException("Tool not found: ${request.name}")
+            }
+        logger.trace { "Executing tool ${request.name} with input: ${request.arguments}" }
         return tool.handler(request)
     }
 
     private suspend fun handleListPrompts(): ListPromptsResult {
+        logger.debug { "Handling list prompts request" }
         return ListPromptsResult(prompts = prompts.values.map { it.prompt })
     }
 
     private suspend fun handleGetPrompt(request: GetPromptRequest): GetPromptResult {
+        logger.debug { "Handling get prompt request for: ${request.name}" }
         val prompt = prompts[request.name]
-            ?: throw IllegalArgumentException("Prompt not found: ${request.name}")
+            ?: run {
+                logger.error { "Prompt not found: ${request.name}" }
+                throw IllegalArgumentException("Prompt not found: ${request.name}")
+            }
         return prompt.messageProvider(request)
     }
 
     private suspend fun handleListResources(): ListResourcesResult {
+        logger.debug { "Handling list resources request" }
         return ListResourcesResult(resources = resources.values.map { it.resource })
     }
 
     private suspend fun handleReadResource(request: ReadResourceRequest): ReadResourceResult {
+        logger.debug { "Handling read resource request for: ${request.uri}" }
         val resource = resources[request.uri]
-            ?: throw IllegalArgumentException("Resource not found: ${request.uri}")
+            ?: run {
+                logger.error { "Resource not found: ${request.uri}" }
+                throw IllegalArgumentException("Resource not found: ${request.uri}")
+            }
         return resource.readHandler(request)
     }
 
@@ -281,9 +318,11 @@ open class Server(
      * Capability assertions (from the first snippet)
      */
     override fun assertCapabilityForMethod(method: Method) {
+        logger.trace { "Asserting capability for method: ${method.value}" }
         when (method.value) {
             "sampling/createMessage" -> {
                 if (clientCapabilities?.sampling == null) {
+                    logger.error { "Client capability assertion failed: sampling not supported" }
                     throw IllegalStateException("Client does not support sampling (required for ${method.value})")
                 }
             }
@@ -301,9 +340,11 @@ open class Server(
     }
 
     override fun assertNotificationCapability(method: Method) {
+        logger.trace { "Asserting notification capability for method: ${method.value}" }
         when (method.value) {
             "notifications/message" -> {
                 if (capabilities.logging == null) {
+                    logger.error { "Server capability assertion failed: logging not supported" }
                     throw IllegalStateException("Server does not support logging (required for ${method.value})")
                 }
             }
@@ -335,9 +376,11 @@ open class Server(
     }
 
     override fun assertRequestHandlerCapability(method: Method) {
+        logger.trace { "Asserting request handler capability for method: ${method.value}" }
         when (method.value) {
             "sampling/createMessage" -> {
                 if (capabilities.sampling == null) {
+                    logger.error { "Server capability assertion failed: sampling not supported" }
                     throw IllegalStateException("Server does not support sampling (required for $method)")
                 }
             }
@@ -398,7 +441,7 @@ open class Server(
         params: CreateMessageRequest,
         options: RequestOptions? = null
     ): CreateMessageResult {
-        // Assuming CreateMessageResultSchema not needed if we can just deserialize into org.jetbrains.kotlinx.mcp.CreateMessageResult
+        logger.debug { "Creating message with params: $params" }
         return request<CreateMessageResult>(params, options)
     }
 
@@ -406,26 +449,32 @@ open class Server(
         params: JsonObject = EmptyJsonObject,
         options: RequestOptions? = null
     ): ListRootsResult {
+        logger.debug { "Listing roots with params: $params" }
         return request<ListRootsResult>(ListRootsRequest(params), options)
     }
 
     suspend fun sendLoggingMessage(params: LoggingMessageNotification) {
+        logger.trace { "Sending logging message: ${params.data}" }
         notification(params)
     }
 
     suspend fun sendResourceUpdated(params: ResourceUpdatedNotification) {
+        logger.debug { "Sending resource updated notification for: ${params.uri}" }
         notification(params)
     }
 
     suspend fun sendResourceListChanged() {
+        logger.debug { "Sending resource list changed notification" }
         notification(ResourceListChangedNotification())
     }
 
     suspend fun sendToolListChanged() {
+        logger.debug { "Sending tool list changed notification" }
         notification(ToolListChangedNotification())
     }
 
     suspend fun sendPromptListChanged() {
+        logger.debug { "Sending prompt list changed notification" }
         notification(PromptListChangedNotification())
     }
 }
