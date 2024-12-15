@@ -124,7 +124,7 @@ private suspend fun Route.createMcpServer(
     val closed = CompletableDeferred<Unit>()
 
     val server = Server(
-        _serverInfo = Implementation(
+        serverInfo = Implementation(
             name = IMPLEMENTATION_NAME,
             version = LIB_VERSION,
         ),
