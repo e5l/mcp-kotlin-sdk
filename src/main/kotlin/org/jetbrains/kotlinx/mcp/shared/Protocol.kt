@@ -33,7 +33,7 @@ import kotlin.time.Duration.Companion.milliseconds
 
 private val LOGGER = KotlinLogging.logger { }
 
-const val IMPLEMENTATION_NAME = "mcp-ktor"
+internal const val IMPLEMENTATION_NAME = "mcp-ktor"
 
 /**
  * Callback for progress notifications.
@@ -100,7 +100,7 @@ data class RequestOptions(
  */
 class RequestHandlerExtra()
 
-val COMPLETED = CompletableDeferred(Unit).also { it.complete(Unit) }
+internal val COMPLETED = CompletableDeferred(Unit).also { it.complete(Unit) }
 
 /**
  * Implements MCP protocol framing on top of a pluggable transport, including

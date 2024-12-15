@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-const val SESSION_ID_PARAM = "sessionId"
+internal const val SESSION_ID_PARAM = "sessionId"
 
 /**
  * Server transport for SSE: this will send messages over an SSE connection and receive messages from HTTP POST requests.
@@ -64,7 +64,7 @@ class SSEServerTransport(
      */
     suspend fun handlePostMessage(call: ApplicationCall) {
         if (!initialized.get()) {
-            val message = "SSE connection not established";
+            val message = "SSE connection not established"
             call.respondText(message, status = HttpStatusCode.InternalServerError)
             onError?.invoke(IllegalStateException(message))
         }
